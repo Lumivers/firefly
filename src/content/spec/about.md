@@ -1,38 +1,30 @@
 # 关于我 / About Me
 
-你好！我是 **夏叶** ，一个在数字世界中默默无闻的一片叶子。
+你好！我是 **LonelyStar** ，一名专注于AI应用和游戏开发的学生，目前正在开发自己的项目。
 
-## 🛠️ 关于本站
+## 🛠️ 个人经历
 
-这个网站使用 **Astro** 框架构建，采用了 [Firefly](https://github.com/CuteLeaf/Firefly) 模板，Firefly 是基于 [Fuwari](https://github.com/saicaca/fuwari) 的二次开发。
+### 全国大学生机器人大赛RoboCon
+- **担任角色**：感知组核心开发者
+- **主要职责**：
+  - 针对 2026 年国内 RoboCon “武林探秘” 赛事主题负责机器人的上位机和视觉相关节点的开发。
+  - 针对 2026 年国内 RoboCon 仿生足式机器人赛事负责机器狗的视觉及决策节点的开发。
 
-**Firefly** 是一款基于 Astro 框架和 Fuwari 模板开发的清新美观且现代化个人博客主题模板，专为技术爱好者和内容创作者设计。该主题融合了现代 Web 技术栈，提供了丰富的功能模块和高度可定制的界面，让您能够轻松打造出专业且美观的个人博客网站。
-
-
-**🖥️在线预览： [Firefly - Demo site](https://firefly.cuteleaf.cn/)**
-
-**🏠我的博客： [https://blog.cuteleaf.cn](https://blog.cuteleaf.cn/)**
-
-**📝Firefly使用文档： [https://docs-firefly.cuteleaf.cn](https://docs-firefly.cuteleaf.cn/)**
-
-**⭐Firefly开源地址：[https://github.com/CuteLeaf/Firefly](https://github.com/CuteLeaf/Firefly)** 
-
-**⭐Fuwari开源地址：[https://github.com/saicaca/fuwari](https://github.com/saicaca/fuwari)**
-
-::github{repo="CuteLeaf/Firefly"}
-
-::github{repo="saicaca/fuwari"}
-
+### [Lumi-Hub](https://github.com/Lumivers/Lumi-Hub)：跨平台私有化 Agent 交互终端与消息路由中枢
+- **核心技术**： Flutter / Python / WebSocket / MCP (Model Context Protocol)
+- **项目简介**： 一套独立于传统 IM 平台的私有化大模型 Agent 交互框架。作为 AstrBot 的自定义平台适配器运行，构建安全、可控的本地化多端交互枢纽。
+- **核心贡献**：
+  - **双轨制架构设计 (Dual-Track System)**： 采用“轻量前端，重载后端”理念。针对高频文件 CRUD 构建“轻量原生轨”，针对复杂操作构建“重型扩展轨”（原生集成 MCP 客户端），无缝对接广阔的开源插件生态。
+  - **人机环路安全机制 (Human-in-the-loop)**： 针对具有破坏性的系统级调用，设计了 Fail-Safe 灾备机制（写操作前强制生成同级 .Lumi_cache 备份），并在客户端实现带 Diff 预览的高危操作审批弹窗拦截。
+  - **跨端流畅体验**： 采用 Flutter 打造现代桌面端应用。攻克冷启动白屏痛点，实现 LLM 流式输出打字机动效、跨气泡长段落选中、悬停时间戳以及可视化的 MCP 热重载配置面板。
 
 ## 📫 联系方式
 
 如果你想和我交流技术问题，分享有趣的想法，或者只是想打个招呼，欢迎通过以下方式联系我：
 
-- 💻 **GitHub**: [CuteLeaf](https://github.com/CuteLeaf)
-- ✉️ **Email**: [xiaye@msn.com](mailto:xiaye@msn.com)
-- 🐧 **QQ交流群：[1087127207](https://qm.qq.com/q/ZGsFa8qX2G)**
-
----
+- 💻 **GitHub**: [Lumivers](https://github.com/Lumivers)
+- ✉️ **Email**: [xzq060312@163.com](mailto:xzq060312@163.com)
+- 🐧 **QQ：[2423109915](https://qm.qq.com/q/NnLMRTdQQI)**
 
 *感谢你的来访！希望在这里能找到对你有用的内容！*
 
