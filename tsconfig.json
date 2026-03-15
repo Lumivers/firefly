@@ -42,7 +42,7 @@
   "include": [
     ".astro/types.d.ts",
     "src/**/*"
-  ],
+, "scripts/new-post.js"  ],
   "exclude": [
     "dist"
   ]
