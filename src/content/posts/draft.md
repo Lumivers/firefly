@@ -1,22 +1,14 @@
 ---
-title: 草稿示例
-published: 1970-01-01
-tags: [Markdown, 博客, 演示]
-category: 文章示例
-draft: true
----
-
-# 这篇文章是草稿
-
-这篇文章目前处于草稿状态，尚未发布。因此，它不会对普通读者可见。内容仍在进行中，可能需要进一步编辑和审查。
-
-当文章准备发布时，您可以在 Frontmatter 中将 "draft" 字段更新为 "false"：
-
-```markdown
----
-title: 草稿示例
-published: 2024-01-11T04:40:26.381Z
-tags: [Markdown, 博客, 演示]
-category: 示例
+title: "文章标题"
+published: 2024-03-16
+pinned: false
+description: "这里写文章的简短描述"
+tags: [标签1, 标签2]
+category: 分类名称
+licenseName: "CC BY-NC-SA 4.0"
+author: "你的名字"
+image: ""
 draft: false
 ---
+
+这里开始写你的正文内容...
