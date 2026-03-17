@@ -1,5 +1,5 @@
 ---
-title: "pubspec.yaml"
+title: "Firefly-Hub 开发笔记：Flutter Windows 客户端启动 (Phase 3)"
 published: 2026-03-04
 description: "从零搭建 Flutter Windows 聊天客户端，实现 WebSocket 通信、Telegram 风格 UI、深浅主题跟随系统、可扩展字体切换、Enter 发送 / Shift+Enter 换行"
 image: "api"

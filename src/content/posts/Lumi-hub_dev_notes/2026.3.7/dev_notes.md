@@ -1,5 +1,5 @@
 ---
-title: "dev_notes"
+title: "Agent 开发笔记：IDE 风格编辑工具与 ReAct 协议闭合"
 published: 2026-03-07
 description: "全面升级 Host 侧智能体执行基建，放弃不稳定的行号操作，引入 IDE 级别的 `search_replace` 模块化编辑工具。通过 persona 程序化注入强制开启 ReAct (Think-Act-Observe) 闭环逻辑，并解决了工具返回值导致循环中断的核心 Bug，实现了真正“懂缩进、能自动、不废话”的高级 Agent 体验。同时也确立了“双轨制”执行架构的终极形态。"
 image: "api"

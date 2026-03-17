@@ -1,5 +1,5 @@
 ---
-title: "1. 构造 AstrBotMessage"
+title: "Firefly-Hub 开发笔记：接入 AstrBot LLM 管道 (Phase 2)"
 published: 2026-03-03
 description: "将 Host 从 Star 插件重构为 Platform 适配器，接入 AstrBot LLM 管道，实现真正的 AI 对话"
 image: "api"

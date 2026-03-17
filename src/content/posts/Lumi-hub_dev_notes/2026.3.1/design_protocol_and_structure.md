@@ -1,5 +1,5 @@
 ---
-title: "design_protocol_and_structure"
+title: "Firefly-Hub: 通信协议与工程目录结构设计"
 published: 2026-03-01
 description: "为了保持 Host、Agent、Client 三端的独立性和未来的可扩展性，建议采用标准的 Monorepo 结构，或者将其拆分为三个独立的代码库。这里以 Monorepo 结构为例：  ```text firefly-hub/ ├── docs/                ├── host/..."
 image: "api"

@@ -1,5 +1,5 @@
 ---
-title: "同步（阻塞）：一次只能做一件事"
+title: "Firefly-Hub 开发笔记：从项目规划到通信协议实现 (Phase 1)"
 published: 2026-03-01
 description: "从项目规划到 Host 端 WebSocket Echo 闭环打通的完整过程"
 image: "api"

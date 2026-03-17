@@ -1,5 +1,5 @@
 ---
-title: "walkthrough"
+title: "Phase 1 代码拆解：Host 端 AstrBot 平台适配器实现"
 published: 2026-03-01
 description: "``` test_echo.py (测试客户端)      │      │ WebSocket (ws://localhost:8765)      ▼ ws_server.py ─── WebSocket Server 核心      │              ├── 连接管理（sessio..."
 image: "api"

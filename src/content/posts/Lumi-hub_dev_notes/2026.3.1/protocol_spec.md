@@ -1,5 +1,5 @@
 ---
-title: "protocol_spec"
+title: "Firefly-Hub 通讯协议详细报文规范"
 published: 2026-03-01
 description: "本文档是 [`protocol.json`](./protocol.json) 的详细说明，定义了 Client、Host、Agent 三端之间通过 WebSocket 传输的所有消息格式。  ---   所有 WebSocket 消息**必须**遵循以下结构：  ```json {   \"mess..."
 image: "api"

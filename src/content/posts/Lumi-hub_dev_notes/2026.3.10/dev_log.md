@@ -1,5 +1,5 @@
 ---
-title: "host/main.py 顶部"
+title: "Lumi-Hub 开发日志：接入原生 MCP 与 HitL 审批流"
 published: 2026-03-10
 description: "今日完成了 MCP（Model Context Protocol）的完整闭环开发，涵盖从零搭建后端 MCP 管理器、接入 AstrBot 主流程、实现安全的 Human-in-the-Loop 工具调用网关，到实现前端可视化配置界面的全链路。  ---   允许 AI 通过标准的 MCP 协议与外部..."
 image: "api"

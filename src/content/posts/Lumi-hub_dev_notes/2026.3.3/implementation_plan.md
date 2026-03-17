@@ -1,5 +1,5 @@
 ---
-title: "implementation_plan"
+title: "Phase 2 实现方案：从插件模式重构为平台适配器"
 published: 2026-03-03
 description: "通过阅读 AstrBot 源码发现：**Star 插件** 只能被动处理已有平台的消息（添加命令、拦截事件等），**无法作为消息来源**注入消息。要让 Firefly-Hub 的 WebSocket Client 消息进入 AstrBot 的 LLM 管道，必须将 Host 注册为 **Platfo..."
 image: "api"
