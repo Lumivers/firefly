@@ -10,9 +10,9 @@ description: "与优秀的朋友们一起成长"
 ## 📋 本站信息
 
 你可以直接复制以下信息添加到你的友链中：
-
 - **站点名称**：LonelyStar
 - **站点描述**：Blog
+- **站点头像**：[https://firefly-7a0.pages.dev/avatar.jpg](https://firefly-7a0.pages.dev/avatar.jpg)
 - **站点链接**：[https://firefly-7a0.pages.dev](https://firefly-7a0.pages.dev)
 - **联系邮箱**：[xzq060312@163.com](mailto:xzq060312@163.com)
 

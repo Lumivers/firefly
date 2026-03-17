@@ -30,7 +30,7 @@ export const friendsConfig: FriendLink[] = [
 	// },
 	{
 		title: "NeoMelt",
-		imgurl: "",
+		imgurl: "https://www.neomelt.cloud/head.jpg",
 		desc: "Neomelt的个人blog",
 		siteurl: "https://www.neomelt.cloud/",
 		tags: ["Blog"],
