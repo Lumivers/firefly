@@ -1,17 +1,13 @@
 ---
-title: "Lumi-Hub: 跨平台私有化 Agent 交互终端与消息路由中枢"
+title: "🌟 Lumi-Hub: 跨平台私有化 Agent 交互终端与消息路由中枢"
 published: 2026-03-17
-pinned: true
-description: "Lumi-Hub 是一套独立于现有聊天平台的私有化 Agent 交互框架。它不仅是一个聊天前端，而是专为大模型（如基于 AstrBot 的 Agent）打造的本地化多端交互枢纽。"
-tags: [Lumi-Hub, AstrBot, MCP, Agent, 跨平台, 私有化, 消息路由]
-category: 软件开发
-licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
-image: ""
+description: "Lumi-Hub 是一套独立于现有聊天平台的私有化 Agent 交互框架。它不仅是一个聊天前端，而是专为大模型（如基于 AstrBot 的 Agent）打造的本地化多端交互枢纽。  [![GitHub](https://img.shields.io/badge/GitHub-Lumivers%2FL..."
+image: "api"
+tags: [Lumi-hub, 开发笔记]
+category: 开发笔记
 draft: false
+pinned: false
 ---
-
-# 🌟 Lumi-Hub: 跨平台私有化 Agent 交互终端与消息路由中枢
 
 Lumi-Hub 是一套独立于现有聊天平台的私有化 Agent 交互框架。它不仅是一个聊天前端，而是专为大模型（如基于 AstrBot 的 Agent）打造的本地化多端交互枢纽。
 

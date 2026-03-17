@@ -1,8 +1,8 @@
 ---
-title: Firefly-Hub 开发笔记：Phase 2 从 Echo 到 LLM 真回复
+title: "1. 构造 AstrBotMessage"
 published: 2026-03-03
-description: 将 Host 从 Star 插件重构为 Platform 适配器，接入 AstrBot LLM 管道，实现真正的 AI 对话
-image: 'api'
+description: "将 Host 从 Star 插件重构为 Platform 适配器，接入 AstrBot LLM 管道，实现真正的 AI 对话"
+image: "api"
 tags: [Lumi-hub, 开发笔记]
 category: 开发笔记
 draft: false

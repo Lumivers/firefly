@@ -1,8 +1,8 @@
 ---
-title: Lumi-Hub 开发日志：2026年3月9日
+title: "dev_log"
 published: 2026-03-09
-description: 为了防止 AI 在自动编码或管理文件时发生意外的破坏性操作（如误删、覆盖未提交代码），我们为 Lumi-Hub 引入了“人机回环”审批机制。系统会在高危操作执行前暂停，通过 Flutter 客户端申请用户权限。
-image: 'api'
+description: "为了防止 AI 在自动编码或管理文件时发生意外的破坏性操作（如误删、覆盖未提交代码），我们为 Lumi-Hub 引入了“人机回环”审批机制。系统会在高危操作执行前暂停，通过 Flutter 客户端申请用户权限。  - **异步响应等待机制**:    - 在 `ws_server.py` 中利用 `..."
+image: "api"
 tags: [Lumi-hub, 开发笔记]
 category: 开发笔记
 draft: false

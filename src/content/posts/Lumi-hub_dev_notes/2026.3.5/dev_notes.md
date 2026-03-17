@@ -1,8 +1,8 @@
 ---
-title: Lumi-Hub 开发笔记：Chat UI 交互进阶 (长按菜单与多选模式)
+title: "dev_notes"
 published: 2026-03-05
-description: 为 Flutter 客户端的聊天界面添加基础的消息交互能力，包括长按弹出操作菜单（复制纯文本、本地删除），以及支持批量操作的“多选模式”。同时解决并重构了遗留的弃用 API（如 `withOpacity`）以适应更高的 Lint 检查标准。
-image: 'api'
+description: "为 Flutter 客户端的聊天界面添加基础的消息交互能力，包括长按弹出操作菜单（复制纯文本、本地删除），以及支持批量操作的“多选模式”。同时解决并重构了遗留的弃用 API（如 `withOpacity`）以适应更高的 Lint 检查标准。"
+image: "api"
 tags: [Lumi-hub, 开发笔记]
 category: 开发笔记
 draft: false

@@ -1,8 +1,8 @@
 ---
-title: Lumi-Hub 开发笔记：破旧立新 (拥抱 MCP，打通记忆与 UI 蜕变)
+title: "dev_notes"
 published: 2026-03-08
-description: 今天完成了一次重大的架构清理与功能跃升。正式决定废弃臃肿的 OpenClaw，全面倒向原生 MCP 协议。同时，引入 SQLite 彻底打通了 AstrBot 的用户记忆持久化闭环。在客户端（Flutter），我们深入原生 C++ 层，打造了多项堪比主流商业 IM 软件的流畅体验。
-image: 'api'
+description: "今天完成了一次重大的架构清理与功能跃升。正式决定废弃臃肿的 OpenClaw，全面倒向原生 MCP 协议。同时，引入 SQLite 彻底打通了 AstrBot 的用户记忆持久化闭环。在客户端（Flutter），我们深入原生 C++ 层，打造了多项堪比主流商业 IM 软件的流畅体验。"
+image: "api"
 tags: [Lumi-hub, 开发笔记]
 category: 开发笔记
 draft: false

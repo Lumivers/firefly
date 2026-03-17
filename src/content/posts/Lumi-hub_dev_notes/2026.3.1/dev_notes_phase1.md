@@ -1,8 +1,8 @@
 ---
-title: Firefly-Hub 开发笔记：Phase 1 从零到 Echo 闭环
+title: "同步（阻塞）：一次只能做一件事"
 published: 2026-03-01
-description: '从项目规划到 Host 端 WebSocket Echo 闭环打通的完整过程'
-image: 'api'
+description: "从项目规划到 Host 端 WebSocket Echo 闭环打通的完整过程"
+image: "api"
 tags: [Lumi-hub, 开发笔记]
 category: 开发笔记
 draft: false

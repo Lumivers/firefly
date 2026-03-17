@@ -1,8 +1,8 @@
 ---
-title: Firefly-Hub 开发笔记：Phase 3 启动 - Flutter Windows 客户端
+title: "pubspec.yaml"
 published: 2026-03-04
-description: 从零搭建 Flutter Windows 聊天客户端，实现 WebSocket 通信、Telegram 风格 UI、深浅主题跟随系统、可扩展字体切换、Enter 发送 / Shift+Enter 换行
-image: 'api'
+description: "从零搭建 Flutter Windows 聊天客户端，实现 WebSocket 通信、Telegram 风格 UI、深浅主题跟随系统、可扩展字体切换、Enter 发送 / Shift+Enter 换行"
+image: "api"
 tags: [Lumi-hub, 开发笔记]
 category: 开发笔记
 draft: false

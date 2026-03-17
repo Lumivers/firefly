@@ -1,8 +1,8 @@
 ---
-title: Phase 2 实现方案：Host 从 Star 插件升级为 Platform 适配器
+title: "implementation_plan"
 published: 2026-03-03
-description: 通过阅读 AstrBot 源码发现：**Star 插件** 只能被动处理已有平台的消息（添加命令、拦截事件等），**无法作为消息来源**注入消息。要让 Firefly-Hub 的 WebSocket Client 消息进入 AstrBot 的 LLM 管道，必须将 Host 注册为 **Platform 适配器**（和 QQ、Telegram 适配器同级）。
-image: 'api'
+description: "通过阅读 AstrBot 源码发现：**Star 插件** 只能被动处理已有平台的消息（添加命令、拦截事件等），**无法作为消息来源**注入消息。要让 Firefly-Hub 的 WebSocket Client 消息进入 AstrBot 的 LLM 管道，必须将 Host 注册为 **Platfo..."
+image: "api"
 tags: [Lumi-hub, 开发笔记]
 category: 开发笔记
 draft: false
