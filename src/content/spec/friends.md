@@ -14,7 +14,6 @@ description: "与优秀的朋友们一起成长"
 - **站点名称**：LonelyStar
 - **站点描述**：Blog
 - **站点链接**：[https://firefly-7a0.pages.dev](https://firefly-7a0.pages.dev)
-- **头像链接**：[assets/images/avatar.avif](assets/images/avatar.avif)
 - **联系邮箱**：[xzq060312@163.com](mailto:xzq060312@163.com)
 
 ## 🤝 申请说明
@@ -26,7 +25,6 @@ description: "与优秀的朋友们一起成长"
    站点名称：您的站点名称
    站点描述：您的站点描述
    站点链接：您的站点链接
-   头像链接：您的站点头像
    ```
 
 ## ⚠️ 注意事项
