@@ -28,6 +28,15 @@ export const friendsConfig: FriendLink[] = [
 	// 	weight: 10, // 权重，数字越大排序越靠前
 	// 	enabled: true, // 是否启用
 	// },
+	{
+		title: "NeoMelt",
+		imgurl: "",
+		desc: "Neomelt的个人blog",
+		siteurl: "https://www.neomelt.cloud/",
+		tags: ["Blog"],
+		weight: 1,
+		enabled: true,
+}
 ];
 
 // 获取启用的友链并进行排序
