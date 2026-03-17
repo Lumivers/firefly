@@ -8,7 +8,7 @@ category: 分类名称
 licenseName: "CC BY-NC-SA 4.0"
 author: "你的名字"
 image: ""
-draft: false
+draft: true
 ---
 
 这里开始写你的正文内容...
