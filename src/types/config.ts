@@ -477,6 +477,9 @@ export type Live2DModelConfig = {
 	enable: boolean; // 是否启用 Live2D 看板娘
 	model: {
 		path: string; // 模型文件夹路径或model3.json文件路径
+		scale?: number; // 仅影响模型在画布内的缩放比例
+		offsetX?: number; // 画布内 X 轴偏移（正数向右移动，负数向左）
+		offsetY?: number; // 画布内 Y 轴偏移（正数向下移动，负数向上）
 	};
 	position?: {
 		corner?: "bottom-left" | "bottom-right" | "top-left" | "top-right"; // 显示位置，默认bottom-right

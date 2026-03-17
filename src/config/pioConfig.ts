@@ -30,7 +30,7 @@ export const spineModelConfig: SpineModelConfig = {
 	// 尺寸配置
 	size: {
 		// 容器宽度
-		width: 135,
+		width: 140,
 		// 容器高度
 		height: 165,
 	},
@@ -86,12 +86,17 @@ export const spineModelConfig: SpineModelConfig = {
 // Live2D 看板娘配置
 export const live2dModelConfig: Live2DModelConfig = {
 	// Live2D 看板娘开关
-	enable: false,
+	enable: true,
 	// Live2D模型配置
 	model: {
 		// Live2D模型文件路径
-		path: "/pio/models/live2d/snow_miku/model.json",
-		// path: "/pio/models/live2d/illyasviel/illyasviel.model.json",
+		path: "/pio/models/live2d/firefly_model/model.json",
+		// 仅影响模型在画布内的缩放比例
+		scale: 1.0,
+		// 画布内 X 轴偏移（正数向右移动，负数向左）
+		offsetX: 55, // 已设置向右偏移以隐藏右侧屏幕外的桌子
+		// 画布内 Y 轴偏移（正数向下移动，负数向上）
+		offsetY: 0,
 	},
 
 	// 位置配置
@@ -106,10 +111,10 @@ export const live2dModelConfig: Live2DModelConfig = {
 
 	// 尺寸配置
 	size: {
-		// 容器宽度
-		width: 135,
-		// 容器高度
-		height: 165,
+		// 缩小玻璃框宽度，直接把右边的桌子和左边的多余透明空间裁切掉
+		width: 215,
+		// 保持人物自然高度
+		height: 275,
 	},
 
 	// 交互配置
@@ -118,7 +123,7 @@ export const live2dModelConfig: Live2DModelConfig = {
 		enabled: true,
 		// 点击时随机显示的文字消息，motions 和 expressions 将从模型 JSON 文件中自动读取
 		clickMessages: [
-			"你好！我是Miku~",
+			"你好！我是流萤~",
 			"有什么需要帮助的吗？",
 			"今天天气真不错呢！",
 			"要不要一起玩游戏？",
