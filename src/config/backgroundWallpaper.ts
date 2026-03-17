@@ -7,20 +7,28 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 	switchable: true,
 	/**
 	 * 背景图片配置
-	 * 
+	 *
 	 * 已改为自动扫描：
-	 * 系统会自动索引 src/assets/images/DesktopWallpaper 和 src/assets/images/MobileWallpaper 
+	 * 系统会自动索引 src/assets/images/DesktopWallpaper 和 src/assets/images/MobileWallpaper
 	 * 目录下的所有图片文件（支持 .png, .jpg, .jpeg, .webp, .avif）。
 	 * 您只需要把图片放进对应文件夹即可，无需在此处手动列出。
 	 */
 	src: {
 		// 自动扫描桌面端壁纸
-		desktop: Object.keys(import.meta.glob("../assets/images/DesktopWallpaper/**/*.{png,jpg,jpeg,webp,avif,gif}", { eager: true }))
-			.map(path => path.replace("../", "")),
-		
+		desktop: Object.keys(
+			import.meta.glob(
+				"../assets/images/DesktopWallpaper/**/*.{png,jpg,jpeg,webp,avif,gif}",
+				{ eager: true },
+			),
+		).map((path) => path.replace("../", "")),
+
 		// 自动扫描移动端壁纸
-		mobile: Object.keys(import.meta.glob("../assets/images/MobileWallpaper/**/*.{png,jpg,jpeg,webp,avif,gif}", { eager: true }))
-			.map(path => path.replace("../", "")),
+		mobile: Object.keys(
+			import.meta.glob(
+				"../assets/images/MobileWallpaper/**/*.{png,jpg,jpeg,webp,avif,gif}",
+				{ eager: true },
+			),
+		).map((path) => path.replace("../", "")),
 	},
 	// Banner模式特有配置
 	banner: {
