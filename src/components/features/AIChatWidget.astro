@@ -1,0 +1,475 @@
+---
+import { Icon } from "astro-icon/components";
+
+// 我们通过 props 或者直接在前端引入 config，为了在组件里能够通过 ASTRO 注入，我们定义一些变量
+import { aiConfig } from "@/config/aiConfig";
+---
+
+<div
+  id="ai-chat-widget"
+  class="ai-chat-widget hidden transition-all duration-300"
+>
+  <div class="chat-container">
+    <!-- 头部栏 -->
+    <div class="chat-header">
+      <div class="chat-title">
+        <Icon
+          name="material-symbols:smart-toy-outline-rounded"
+          class="text-xl text-(--primary)"
+        />
+        <span>Firefly AI</span>
+      </div>
+      <div class="chat-actions">
+        <!-- 移除设置按钮，保留关闭按钮 -->
+        <button id="chat-close-btn" class="icon-btn" title="关闭">
+          <Icon name="material-symbols:close-rounded" />
+        </button>
+      </div>
+    </div>
+
+    <!-- 消息列表区 -->
+    <div id="chat-messages" class="chat-messages">
+      <div class="message system-message">
+        <div class="message-content">
+          你好！我是流萤，你的解答小助手。有什么我可以帮你的吗？
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部输入区 -->
+    <div class="chat-input-area">
+      <textarea
+        id="chat-input"
+        placeholder="输入你想聊的话题... (Enter 发送)"
+        rows="1"></textarea>
+      <button id="chat-send-btn" class="send-btn" disabled>
+        <Icon name="material-symbols:send-rounded" />
+      </button>
+    </div>
+  </div>
+</div>
+
+<script is:inline define:vars={{ config: aiConfig }}>
+  // 将通过 Astro 的 define:vars 注入到前端变量 config 中
+  let chatHistory = [];
+  let isGenerating = false;
+
+  const initChatWidget = () => {
+    const widget = document.getElementById("ai-chat-widget");
+    const closeBtn = document.getElementById("chat-close-btn");
+    const chatInput = document.getElementById("chat-input");
+    const sendBtn = document.getElementById("chat-send-btn");
+    const messagesContainer = document.getElementById("chat-messages");
+
+    if (!widget || !closeBtn || !chatInput || !sendBtn || !messagesContainer)
+      return;
+
+    // 防止事件重复绑定
+    if (widget.dataset.initialized) return;
+    widget.dataset.initialized = "true";
+
+    // 暴露供外部调用
+    window.toggleLumiChat = () => {
+      if (widget.classList.contains("hidden")) {
+        widget.classList.remove("hidden");
+        setTimeout(() => chatInput.focus(), 300);
+      } else {
+        widget.classList.add("hidden");
+      }
+    };
+
+    closeBtn.addEventListener("click", () => {
+      if (window.toggleLumiChat) {
+        window.toggleLumiChat();
+      }
+    });
+
+    // 自动变高输入框
+    chatInput.addEventListener("input", () => {
+      chatInput.style.height = "auto";
+      chatInput.style.height = chatInput.scrollHeight + "px";
+      if (chatInput.scrollHeight > 120) {
+        chatInput.style.overflowY = "auto";
+      } else {
+        chatInput.style.overflowY = "hidden";
+      }
+      sendBtn.disabled = chatInput.value.trim() === "" || isGenerating;
+    });
+
+    chatInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    sendBtn.addEventListener("click", sendMessage);
+
+    function appendMessage(role, content) {
+      const msgDiv = document.createElement("div");
+      msgDiv.className = `message ${role}-message`;
+
+      const contentDiv = document.createElement("div");
+      contentDiv.className = "message-content";
+      contentDiv.innerHTML = content.replace(/\n/g, "<br/>");
+
+      msgDiv.appendChild(contentDiv);
+      messagesContainer.appendChild(msgDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const text = chatInput.value.trim();
+      if (!text || isGenerating) return;
+
+      // 既然改成了纯后端代理模式，前端不再需要在意 apiKey，后端 /api/chat 会处理
+      chatInput.value = "";
+      chatInput.style.height = "auto";
+      sendBtn.disabled = true;
+
+      appendMessage("user", text);
+      chatHistory.push({ role: "user", content: text });
+
+      isGenerating = true;
+
+      const loadingDiv = document.createElement("div");
+      loadingDiv.className = `message assistant-message loading-msg`;
+      const loadingContent = document.createElement("div");
+      loadingContent.className = "message-content";
+      loadingContent.innerHTML =
+        '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+      loadingDiv.appendChild(loadingContent);
+      messagesContainer.appendChild(loadingDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+      try {
+        // 统一走刚刚创建的服务端代理接口
+        const endpoint = `/api/chat`;
+
+        // 抓取当前页面所在的上下文
+        let pageContext = "";
+        const articleNode = document.querySelector("#content-wrapper");
+        if (articleNode) {
+          const text = articleNode.innerText || articleNode.textContent || "";
+          if (text.trim().length > 0) {
+            const truncatedText = text.substring(0, 3000).trim();
+            pageContext = `\n\n【系统提示：当前访客正在阅览的页面信息如下】\n页面标题：${document.title}\n页面内容摘要：\n${truncatedText}...(因长度限制已截断)`;
+          }
+        }
+
+        const requestMessages = [
+          { role: "system", content: config.systemPrompt + pageContext },
+          ...chatHistory.slice(-6),
+        ];
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Device-Id": (function() {
+                let id = localStorage.getItem('lumi_device_id');
+                if (!id) {
+                    id = 'dev_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+                    localStorage.setItem('lumi_device_id', id);
+                }
+                return id;
+            })()
+          },
+          body: JSON.stringify({
+            messages: requestMessages,
+          }),
+        });
+
+        if (!response.ok) {
+          const errResult = await response.json().catch(() => ({}));
+          throw new Error(
+            errResult.error?.message || `HTTP ${response.status}`,
+          );
+        }
+
+        const result = await response.json();
+        const reply =
+          result.choices?.[0]?.message?.content ||
+          "抱歉，我没有接收到有效回复内容。";
+
+        loadingDiv.remove();
+        appendMessage("assistant", reply);
+        chatHistory.push({ role: "assistant", content: reply });
+      } catch (error) {
+        loadingDiv.remove();
+        appendMessage("system", `请求错误: ${error.message}`);
+      } finally {
+        isGenerating = false;
+        sendBtn.disabled = chatInput.value.trim() === "";
+        chatInput.focus();
+      }
+    }
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initChatWidget);
+  } else {
+    initChatWidget();
+  }
+</script>
+
+<style is:global>
+  /* ============ 聊天框定位 ============ */
+  #ai-chat-widget {
+    position: fixed;
+    bottom: 95px;
+    left: 225px;
+    width: 320px;
+    height: 460px;
+    max-height: 75vh;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    transform-origin: bottom left;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  .dark #ai-chat-widget {
+    background: rgba(28, 30, 40, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  }
+  #ai-chat-widget.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.9) translateY(20px);
+  }
+  @media (max-width: 768px) {
+    #ai-chat-widget {
+      bottom: 70px;
+      left: 16px;
+      right: 16px;
+      width: calc(100vw - 32px);
+      height: 500px;
+      max-height: 80vh;
+    }
+  }
+
+  /* ============ 内部布局 ============ */
+  #ai-chat-widget .chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+  }
+
+  /* 头部 Header */
+  #ai-chat-widget .chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.02);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  .dark #ai-chat-widget .chat-header {
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  #ai-chat-widget .chat-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: #1a1a1a;
+  }
+  .dark #ai-chat-widget .chat-title {
+    color: #f0f0f0;
+  }
+  #ai-chat-widget .chat-actions {
+    display: flex;
+    gap: 8px;
+  }
+  #ai-chat-widget .icon-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: #555;
+    transition: all 0.2s;
+  }
+  .dark #ai-chat-widget .icon-btn {
+    color: #aaa;
+  }
+  #ai-chat-widget .icon-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--primary);
+  }
+  .dark #ai-chat-widget .icon-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  /* 消息列表 */
+  #ai-chat-widget .chat-messages {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scroll-behavior: smooth;
+  }
+  #ai-chat-widget .chat-messages::-webkit-scrollbar { width: 4px; }
+  #ai-chat-widget .chat-messages::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+  }
+  .dark #ai-chat-widget .chat-messages::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  /* 消息气泡 */
+  #ai-chat-widget .message {
+    display: flex;
+    max-width: 85%;
+    animation: lumiChatFadeIn 0.3s ease;
+  }
+  #ai-chat-widget .user-message    { align-self: flex-end; }
+  #ai-chat-widget .assistant-message { align-self: flex-start; }
+  #ai-chat-widget .system-message  { align-self: center; max-width: 95%; }
+
+  #ai-chat-widget .message-content {
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+
+  /* 用户消息 */
+  #ai-chat-widget .user-message .message-content {
+    background: var(--primary, #10b981);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+  }
+
+  /* AI 消息 — 亮色 */
+  #ai-chat-widget .assistant-message .message-content {
+    background: rgba(0, 0, 0, 0.06);
+    color: #1a1a1a;
+    border-bottom-left-radius: 4px;
+  }
+  /* AI 消息 — 暗色：字体变亮 */
+  .dark #ai-chat-widget .assistant-message .message-content {
+    background: rgba(255, 255, 255, 0.12);
+    color: #f0f0f0;
+  }
+
+  /* 系统消息 */
+  #ai-chat-widget .system-message .message-content {
+    background: transparent;
+    color: #888;
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 4px;
+  }
+
+  /* 输入区域 */
+  #ai-chat-widget .chat-input-area {
+    padding: 12px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    background: rgba(0, 0, 0, 0.01);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  .dark #ai-chat-widget .chat-input-area {
+    background: rgba(255, 255, 255, 0.01);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  #ai-chat-widget textarea#chat-input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid transparent;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    resize: none;
+    outline: none;
+    min-height: 40px;
+    max-height: 120px;
+    transition: all 0.2s;
+    font-family: inherit;
+    color: #1a1a1a;
+  }
+  .dark #ai-chat-widget textarea#chat-input {
+    background: rgba(255, 255, 255, 0.05);
+    color: #f0f0f0;
+  }
+  #ai-chat-widget textarea#chat-input:focus {
+    border-color: var(--primary, #10b981);
+    background: transparent;
+  }
+  #ai-chat-widget .send-btn {
+    background: var(--primary, #10b981);
+    color: #fff;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  }
+  #ai-chat-widget .send-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+  }
+  #ai-chat-widget .send-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+  .dark #ai-chat-widget .send-btn:disabled {
+    background: #444;
+    color: #777;
+  }
+
+  /* 动画 */
+  @keyframes lumiChatFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  #ai-chat-widget .typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+  }
+  #ai-chat-widget .typing-indicator span {
+    width: 6px; height: 6px;
+    background-color: #888;
+    border-radius: 50%;
+    animation: lumiTyping 1.4s infinite ease-in-out both;
+  }
+  #ai-chat-widget .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+  #ai-chat-widget .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+  @keyframes lumiTyping {
+    0%, 80%, 100% { transform: scale(0); }
+    40%           { transform: scale(1); }
+  }
+</style>
+
+

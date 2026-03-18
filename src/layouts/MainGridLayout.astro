@@ -1,5 +1,7 @@
 ---
 import Live2DWidget from "@components/features/Live2DWidget.astro";
+import AIChatWidget from "@components/features/AIChatWidget.astro";
+import MobileChatButton from "@components/features/MobileChatButton.astro";
 
 import SpineModel from "@components/features/SpineModel.astro";
 import Footer from "@components/layout/Footer.astro";
@@ -710,6 +712,8 @@ const mobileQuality = Math.round(configQuality * 0.9);
 
         <SpineModel></SpineModel>
         {live2dModelConfig.enable && <Live2DWidget config={live2dModelConfig} />}
+        <AIChatWidget />
+        <MobileChatButton />
     </div>
 </div>
 

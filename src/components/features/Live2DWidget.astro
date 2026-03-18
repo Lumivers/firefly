@@ -153,6 +153,9 @@ const size = config.size || { width: 280, height: 250 };
         if (live2dModel) {
             playRandomMotion(live2dModel);
             showMessage();
+            if (typeof window.toggleLumiChat === 'function') {
+                window.toggleLumiChat();
+            }
         }
     });
 

@@ -1,0 +1,57 @@
+---
+import { Icon } from "astro-icon/components";
+---
+
+<div id="mobile-chat-fab" class="mobile-chat-fab transition-all duration-300">
+  <button class="fab-btn" aria-label="Open AI Chat" onclick="window.toggleLumiChat()">
+    <Icon name="material-symbols:smart-toy-outline-rounded" class="fab-icon" />
+  </button>
+</div>
+
+<style>
+.mobile-chat-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999;
+  display: none; /* 默认隐藏，媒体查询中开启 */
+}
+
+@media (max-width: 768px) {
+  /* 仅在手机端显示此悬浮球 */
+  .mobile-chat-fab {
+    display: block;
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+}
+
+.fab-btn {
+  background: var(--primary, #10b981);
+  color: white;
+  border: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  padding: 0;
+}
+
+.fab-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.fab-icon {
+  font-size: 28px;
+}
+
+@keyframes popIn {
+  0% { transform: scale(0); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+</style>
