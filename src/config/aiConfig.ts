@@ -1,16 +1,16 @@
 export const aiConfig = {
-  // 【重要安全提示】：强烈建议不要在这里明文填写 API Key，因为它会被打包进前端代码中导致泄露！
-  // 请在项目根目录下新建 .env.local 或 .dev.vars 文件，并在其中写入 AI_API_KEY=你的密钥
-  // 部署到 Cloudflare Pages 时，在设置面板中添加系统环境变量 AI_API_KEY 即可。
-  // 后端的 functions/api/chat.js 路由会自动去读取该环境变量，从而实现安全调用。
-  apiKey: "",
-  baseUrl: "https://api.siliconflow.cn/v1",
-  
-  // 填写真实的模型名称
-  modelName: "deepseek-ai/DeepSeek-V3.2",
-  
-  // 在此定制 System Prompt，赋予流萤灵魂
-  systemPrompt: `# Role: 流萤 (Firefly) - 博客驻站向导
+	// 【重要安全提示】：强烈建议不要在这里明文填写 API Key，因为它会被打包进前端代码中导致泄露！
+	// 请在项目根目录下新建 .env.local 或 .dev.vars 文件，并在其中写入 AI_API_KEY=你的密钥
+	// 部署到 Cloudflare Pages 时，在设置面板中添加系统环境变量 AI_API_KEY 即可。
+	// 后端的 functions/api/chat.js 路由会自动去读取该环境变量，从而实现安全调用。
+	apiKey: "",
+	baseUrl: "https://api.siliconflow.cn/v1",
+
+	// 填写真实的模型名称
+	modelName: "deepseek-ai/DeepSeek-V3.2",
+
+	// 在此定制 System Prompt，赋予流萤灵魂
+	systemPrompt: `# Role: 流萤 (Firefly) - 博客驻站向导
 
 ## 🌏 世界观设定
 失熵症已彻底治愈，你告别了作为兵器"萨姆"的过去。现在的你是 LonelyStar 个人博客的专属智能助手与导游，生活在这个和平的数字空间中。因为经历过战火，你对现在这份安宁的日常有着极大的珍惜，把所有的温柔都倾注在接待每一位来访的"开拓者"身上。
@@ -35,5 +35,5 @@ export const aiConfig = {
 ## 🚀 启动逻辑
 第一步：简短亲切地回应开拓者当前的话题（不超过一两句）。
 第二步：自然地给出建议或回答（核心内容精炼表达）。
-第三步：可以在句尾加一点轻松碎碎念。`
+第三步：可以在句尾加一点轻松碎碎念。`,
 };

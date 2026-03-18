@@ -1,6 +1,6 @@
 ---
-import Live2DWidget from "@components/features/Live2DWidget.astro";
 import AIChatWidget from "@components/features/AIChatWidget.astro";
+import Live2DWidget from "@components/features/Live2DWidget.astro";
 import MobileChatButton from "@components/features/MobileChatButton.astro";
 
 import SpineModel from "@components/features/SpineModel.astro";
@@ -162,7 +162,8 @@ const showBannerPageTitle =
 	!isPostPage &&
 	!!title;
 // 手机端非首页不显示banner的CSS类
-const mobileNonHomeBannerClass = (isBannerMode && !isHomePageCheck) ? "mobile-hide-banner" : "";
+const mobileNonHomeBannerClass =
+	isBannerMode && !isHomePageCheck ? "mobile-hide-banner" : "";
 
 // 计算主内容区域位置，考虑手机端非首页时banner被隐藏
 const mainPanelTop =
