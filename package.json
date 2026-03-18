@@ -66,7 +66,7 @@
     "remark-directive-rehype": "^0.4.2",
     "remark-math": "^6.0.0",
     "remark-sectionize": "^2.1.0",
-    "sanitize-html": "^2.17.1",
+    "sanitize-html": "^2.17.2",
     "satori": "^0.25.0",
     "sharp": "^0.34.5",
     "stylus": "^0.64.0",
@@ -77,19 +77,19 @@
   },
   "devDependencies": {
     "@astrojs/ts-plugin": "^1.10.7",
-    "@biomejs/biome": "2.4.7",
+    "@biomejs/biome": "2.4.8",
     "@iconify-json/mdi": "^1.2.3",
     "@iconify-json/svg-spinners": "^1.2.4",
     "@iconify/types": "^2.0.0",
     "@rollup/plugin-yaml": "^4.1.2",
-    "@tailwindcss/vite": "^4.2.1",
+    "@tailwindcss/vite": "^4.2.2",
     "@types/hast": "^3.0.4",
     "@types/mdast": "^4.0.4",
     "@types/qrcode": "^1.5.6",
     "@types/sanitize-html": "^2.16.1",
     "postcss-import": "^16.1.1",
     "postcss-nesting": "^13.0.2",
-    "tailwindcss": "^4.2.1"
+    "tailwindcss": "^4.2.2"
   },
   "packageManager": "pnpm@9.14.4"
 }
