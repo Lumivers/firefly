@@ -19,14 +19,14 @@ lang: "zh"
 
 | 题号 | 题目名称 | 核心考点 | 难度 |
 | :--- | :--- | :--- | :--- |
-| 1 | [两数之和](./1.two-sum.md) | 哈希表、暴力扫描 | 🟢 简单 |
-| 26 | [删除有序数组中的重复项](./26.remove-duplicates-from-sorted-array.md) | 双指针 (快慢指针) | 🟢 简单 |
-| 27 | [移除元素](./27.remove-element.md) | 双指针 (原地修改) | 🟢 简单 |
-| 35 | [搜索插入位置](./35.search-insert-position.md) | 二分查找 (左闭右开) | 🟢 简单 |
-| 66 | [加一](./66.plus-one.md) | 进位处理、数学模拟 | 🟢 简单 |
-| 69 | [x 的平方根](./69.sqrtx.md) | 二分查找、牛顿迭代法 | 🟢 简单 |
-| 70 | [爬楼梯](./70.climbing-stairs.md) | 动态规划、状态转移 | 🟢 简单 |
-| 88 | [合并两个有序数组](./88.merge-sorted-array.md) | 逆向双指针、原地合并 | 🟢 简单 |
+| 1 | [两数之和](../1.two-sum/) | 哈希表、暴力扫描 | 🟢 简单 |
+| 26 | [删除有序数组中的重复项](../26.remove-duplicates-from-sorted-array/) | 双指针 (快慢指针) | 🟢 简单 |
+| 27 | [移除元素](../27.remove-element/) | 双指针 (原地修改) | 🟢 简单 |
+| 35 | [搜索插入位置](../35.search-insert-position/) | 二分查找 (左闭右开) | 🟢 简单 |
+| 66 | [加一](../66.plus-one/) | 进位处理、数学模拟 | 🟢 简单 |
+| 69 | [x 的平方根](../69.sqrtx/) | 二分查找、牛顿迭代法 | 🟢 简单 |
+| 70 | [爬楼梯](../70.climbing-stairs/) | 动态规划、状态转移 | 🟢 简单 |
+| 88 | [合并两个有序数组](../88.merge-sorted-array/) | 逆向双指针、原地合并 | 🟢 简单 |
 
 ---
 
@@ -34,12 +34,12 @@ lang: "zh"
 
 | 题号 | 题目名称 | 核心考点 | 难度 |
 | :--- | :--- | :--- | :--- |
-| 9 | [回文数](./9.palindrome-number.md) | 双指针、数学反转 | 🟢 简单 |
-| 13 | [罗马数字转整数](./13.roman-to-integer.md) | 哈希表、映射逻辑 | 🟢 简单 |
-| 14 | [最长公共前缀](./14.longest-common-prefix.md) | 排序比对、字典树 (Trie) | 🟢 简单 |
-| 20 | [有效的括号](./20.valid-parentheses.md) | 栈 (Stack)、LIFO 逻辑 | 🟢 简单 |
-| 28 | [找出字符串第一个匹配项](./28.find-the-index-of-the-first-occurrence-in-a-string.md) | KMP 算法、双指针 | 🟢 简单 |
-| 58 | [最后一个单词的长度](./58.length-of-last-word.md) | 反向遍历、边界处理 | 🟢 简单 |
+| 9 | [回文数](../9.palindrome-number/) | 双指针、数学反转 | 🟢 简单 |
+| 13 | [罗马数字转整数](../13.roman-to-integer/) | 哈希表、映射逻辑 | 🟢 简单 |
+| 14 | [最长公共前缀](../14.longest-common-prefix/) | 排序比对、字典树 (Trie) | 🟢 简单 |
+| 20 | [有效的括号](../20.valid-parentheses/) | 栈 (Stack)、LIFO 逻辑 | 🟢 简单 |
+| 28 | [找出字符串第一个匹配项](../28.find-the-index-of-the-first-occurrence-in-a-string/) | KMP 算法、双指针 | 🟢 简单 |
+| 58 | [最后一个单词的长度](../58.length-of-last-word/) | 反向遍历、边界处理 | 🟢 简单 |
 
 ---
 
@@ -47,8 +47,8 @@ lang: "zh"
 
 | 题号 | 题目名称 | 核心考点 | 难度 |
 | :--- | :--- | :--- | :--- |
-| 21 | [合并两个有序链表](./21.merge-two-sorted-lists.md) | 递归、归并迭代 | 🟢 简单 |
-| 83 | [删除排序链表中的重复元素](./83.remove-duplicates-from-sorted-list.md) | 指针移动、节点跳过 | 🟢 简单 |
+| 21 | [合并两个有序链表](../21.merge-two-sorted-lists/) | 递归、归并迭代 | 🟢 简单 |
+| 83 | [删除排序链表中的重复元素](../83.remove-duplicates-from-sorted-list/) | 指针移动、节点跳过 | 🟢 简单 |
 
 ---
 
@@ -56,13 +56,13 @@ lang: "zh"
 
 | 题号 | 题目名称 | 核心考点 | 难度 |
 | :--- | :--- | :--- | :--- |
-| 94 | [二叉树的中序遍历](./94.binary-tree-inorder-traversal.md) | 栈 (Stack)、递归/迭代、Morris | 🟢 简单 |
-| 100 | [相同的树](./100.same-tree.md) | 递归 DFS、结构比对 | 🟢 简单 |
-| 101 | [对称二叉树](./101.symmetric-tree.md) | 递归/层序迭代、镜像逻辑 | 🟢 简单 |
-| 102 | [二叉树的层序遍历](./102.binary-tree-level-order-traversal.md) | 广度优先搜索 (BFS)、队列 | 🟡 中等 |
-| 104 | [二叉树的最大深度](./104.maximum-depth-of-binary-tree.md) | 后序遍历、层序 BFS | 🟢 简单 |
-| 107 | [二叉树的层序遍历 II](./107.binary-tree-level-order-traversal-ii.md) | BFS 模板、结果反转 | 🟡 中等 |
-| 108 | [有序数组转二叉搜索树](./108.convert-sorted-array-to-binary-search-tree.md) | 二分查找思维、递归分治 | 🟢 简单 |
+| 94 | [二叉树的中序遍历](../94.binary-tree-inorder-traversal/) | 栈 (Stack)、递归/迭代、Morris | 🟢 简单 |
+| 100 | [相同的树](../100.same-tree/) | 递归 DFS、结构比对 | 🟢 简单 |
+| 101 | [对称二叉树](../101.symmetric-tree/) | 递归/层序迭代、镜像逻辑 | 🟢 简单 |
+| 102 | [二叉树的层序遍历](../102.binary-tree-level-order-traversal/) | 广度优先搜索 (BFS)、队列 | 🟡 中等 |
+| 104 | [二叉树的最大深度](../104.maximum-depth-of-binary-tree/) | 后序遍历、层序 BFS | 🟢 简单 |
+| 107 | [二叉树的层序遍历 II](../107.binary-tree-level-order-traversal-ii/) | BFS 模板、结果反转 | 🟡 中等 |
+| 108 | [有序数组转二叉搜索树](../108.convert-sorted-array-to-binary-search-tree/) | 二分查找思维、递归分治 | 🟢 简单 |
 
 ---
 
@@ -70,7 +70,7 @@ lang: "zh"
 
 | 题号 | 题目名称 | 核心考点 | 难度 |
 | :--- | :--- | :--- | :--- |
-| 70 | [爬楼梯](./70.climbing-stairs.md) | 状态转移方程、滚动优化 | 🟢 简单 |
+| 70 | [爬楼梯](../70.climbing-stairs/) | 状态转移方程、滚动优化 | 🟢 简单 |
 
 ---
 
@@ -78,20 +78,20 @@ lang: "zh"
 
 | 题号 | 题目名称 | 核心考点 | 难度 |
 | :--- | :--- | :--- | :--- |
-| 9 | [回文数](./9.palindrome-number.md) | 整数反转、溢出处理 | 🟢 简单 |
-| 13 | [罗马数字转整数](./13.roman-to-integer.md) | 映射关系、哈希表 | 🟢 简单 |
-| 66 | [加一](./66.plus-one.md) | 进位处理、数组模拟 | 🟢 简单 |
-| 69 | [x 的平方根](./69.sqrtx.md) | 数值逼近、溢出处理 | 🟢 简单 |
-| 70 | [爬楼梯](./70.climbing-stairs.md) | 斐波那契、动态规划 | 🟢 简单 |
+| 9 | [回文数](../9.palindrome-number/) | 整数反转、溢出处理 | 🟢 简单 |
+| 13 | [罗马数字转整数](../13.roman-to-integer/) | 映射关系、哈希表 | 🟢 简单 |
+| 66 | [加一](../66.plus-one/) | 进位处理、数组模拟 | 🟢 简单 |
+| 69 | [x 的平方根](../69.sqrtx/) | 数值逼近、溢出处理 | 🟢 简单 |
+| 70 | [爬楼梯](../70.climbing-stairs/) | 斐波那契、动态规划 | 🟢 简单 |
 
 ---
 
 ## 🧠 专题汇总
 
 ### 💡 核心思想 (Top Meta-Tags)
-- **双指针 (Two Pointers)**: [1.两数之和](./1.two-sum.md) · [9.回文数](./9.palindrome-number.md) · [26.去重](./26.remove-duplicates-from-sorted-array.md) · [27.移除](./27.remove-element.md) · [28.KMP](./28.find-the-index-of-the-first-occurrence-in-a-string.md) · [88.合并](./88.merge-sorted-array.md)
-- **哈希表 (Hash Table)**: [1.两数之和](./1.two-sum.md) · [13.罗马数字转整数](./13.roman-to-integer.md)
-- **专题汇总 (Special Topics)**: [20.栈](./20.valid-parentheses.md) · [14.字典树](./14.longest-common-prefix.md) · [35/69.二分法](./35.search-insert-position.md) · [70.滚动 DP](./70.climbing-stairs.md) · [83.链表指针](./83.remove-duplicates-from-sorted-list.md) · [94/100/101.DFS](./94.binary-tree-inorder-traversal.md) · [102.BFS](./102.binary-tree-level-order-traversal.md)
+- **双指针 (Two Pointers)**: [1.两数之和](../1.two-sum/) · [9.回文数](../9.palindrome-number/) · [26.去重](../26.remove-duplicates-from-sorted-array/) · [27.移除](../27.remove-element/) · [28.KMP](../28.find-the-index-of-the-first-occurrence-in-a-string/) · [88.合并](../88.merge-sorted-array/)
+- **哈希表 (Hash Table)**: [1.两数之和](../1.two-sum/) · [13.罗马数字转整数](../13.roman-to-integer/)
+- **专题汇总 (Special Topics)**: [20.栈](../20.valid-parentheses/) · [14.字典树](../14.longest-common-prefix/) · [35/69.二分法](../35.search-insert-position/) · [70.滚动 DP](../70.climbing-stairs/) · [83.链表指针](../83.remove-duplicates-from-sorted-list/) · [94/100/101.DFS](../94.binary-tree-inorder-traversal/) · [102.BFS](../102.binary-tree-level-order-traversal/)
 
 ---
 
