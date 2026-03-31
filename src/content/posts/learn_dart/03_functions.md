@@ -2,8 +2,8 @@
 title: "第三章 函数、闭包与高阶函数"
 published: 2026-03-30
 pinned: false
-description: "掌握 Dart 函数的声明方式、命名参数（C++ 没有的重要特性）、闭包机制，以及 Dart 独有的级联运算符。这些是读懂 Flutter 代码的基础。"
-tags: [Dart, C++, 函数, 闭包, 高阶函数]
+description: "**理解 Dart 的一等公民。** 掌握命名参数、级联运算符与闭包的高级用法，写出极具表达力的代码。"
+tags: [Dart, Functions, Closures]
 licenseName: "CC BY-NC-SA 4.0"
 author: "lonelystar"
 image: ""

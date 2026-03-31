@@ -2,8 +2,8 @@
 title: "第九章 泛型与扩展方法"
 published: 2026-03-30
 pinned: false
-description: "目标：掌握 Dart 的泛型系统和 Extension methods。泛型让代码类型安全且可复用，Extension methods 让你给任何已有类型添加新方法——包括你无法修改源码的第三方库。"
-tags: [Dart, C++, 泛型, 扩展方法]
+description: "探索 Dart 的高级进阶语法。通过泛型提升代码复用率，利用扩展方法（Extensions）为已有类注入新功能，让你的代码更加优雅、精炼。"
+tags: [Dart, 泛型, 扩展方法, 代码复用]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lonelystar"

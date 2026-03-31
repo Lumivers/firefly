@@ -2,8 +2,8 @@
 title: "第五章 枚举、模式匹配与 Dart 3 新特性"
 published: 2026-03-30
 pinned: false
-description: "掌握 Dart 的枚举系统（比 C++ 强大得多）和 Dart 3 引入的模式匹配、switch 表达式、Records、sealed class 等现代特性。这些特性让代码更安全、更优雅。"
-tags: [Dart, C++, 枚举, 模式匹配, Dart 3]
+description: "**Dart 3 的究极进化。** 见识比 C++ 强大百倍的增强枚举，以及如何利用模式匹配优雅地解构复杂 JSON 数据。"
+tags: [Dart, Enums, Pattern Matching]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lonelystar"

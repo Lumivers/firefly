@@ -2,8 +2,8 @@
 title: "第十二章 状态管理：Provider 与 ChangeNotifier"
 published: 2026-03-30
 pinned: false
-description: "目标：掌握 Flutter 的状态管理体系。状态管理是 Flutter 应用架构的核心——它决定了数据存在哪里和 UI 怎么响应数据变化。Lumi-Hub 使用 Provider + ChangeNotifier 方案，是 Flutter 官方推荐的入门级状态管理。"
-tags: [Flutter, Dart, 状态管理, Provider, ChangeNotifier]
+description: "状态管理是 Flutter 应用的灵魂。本章深入剖析 Provider 与 ChangeNotifier，带你掌握如何在复杂应用中实现优雅的数据流转与 UI 响应。"
+tags: [Flutter, 状态管理, Provider, ChangeNotifier]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lonelystar"

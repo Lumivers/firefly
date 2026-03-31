@@ -2,8 +2,8 @@
 title: "第十五章 WebSocket 实战：通信协议与消息处理"
 published: 2026-03-30
 pinned: false
-description: "目标：深入 Lumi-Hub 的 WebSocket 通信架构。本章是前面所有知识的综合应用——async/await（Ch7）、Stream（Ch8）、Completer（Ch7）、ChangeNotifier（Ch12）、JSON 序列化、文件 I/O 在一个真实的网络通信系统中交汇。"
-tags: [Flutter, Dart, WebSocket, 协议, 消息处理]
+description: "深度解析 WebSocket 全双工通信。通过异步 Stream 与 Completer 模式，构建一个支持流式回复、文件分片上传及心跳重连的高性能网络系统。"
+tags: [Dart, WebSocket, 异步编程, 网络协议]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lonelystar"

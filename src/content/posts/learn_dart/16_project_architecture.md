@@ -2,8 +2,8 @@
 title: "第十六章 项目架构总览与知识地图"
 published: 2026-03-30
 pinned: false
-description: "目标：鸟瞰整个 Lumi-Hub 项目的架构设计，回顾 16 章学到的所有知识如何在一个真实项目中交织在一起。本章是终章——不引入新知识，而是把一切串成一张完整的地图。"
-tags: [Flutter, Dart, 架构, 知识地图]
+description: "终章：鸟瞰 Lumi-Hub 全局架构。回顾从零到一的开发历程，沉淀 Dart/Flutter 最佳实践，绘制一张通往高级开发者进阶之路的知识全景图。"
+tags: [架构设计, 最佳实践, 知识地图, 深度总结]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lonelystar"

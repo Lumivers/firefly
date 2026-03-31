@@ -2,8 +2,8 @@
 title: "第六章 错误处理与异常"
 published: 2026-03-30
 pinned: false
-description: "目标：全面掌握 Dart 的异常处理体系。Dart 的异常机制和 C++ 类似但更灵活——没有 检查异常 的概念，所有异常都是未检查的。本章会结合 Lumi-Hub 展示真实项目中五种常见的错误处理策略。"
-tags: [Dart, C++, 错误处理, 异常]
+description: "深入 Dart 的错误处理机制。从基础的 try-catch 到自定义异常，学习如何利用结果类型与异常捕获，构建一个健壮且具有容错能力的现代化应用。"
+tags: [Dart, 错误处理, 异常归因, 健壮性]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lonelystar"

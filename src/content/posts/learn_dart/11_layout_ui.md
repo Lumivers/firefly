@@ -2,8 +2,8 @@
 title: "第十一章 Flutter 布局与常用 Widget"
 published: 2026-03-30
 pinned: false
-description: "目标：掌握 Flutter 的布局系统和核心 Widget。Flutter 用组合代替继承来构建 UI——通过嵌套 Row/Column/Stack 等布局容器和 Padding/SizedBox 等间距 Widget 来实现精确的界面设计。"
-tags: [Flutter, Dart, 布局, Widget]
+description: "从 Row/Column 到 Stack/Container，深度解析 Flutter 的声明式布局系统。学习如何通过组件组合而非继承，构建出高性能且极具美感的桌面级 UI。"
+tags: [Flutter, 布局系统, Widget, 声明式UI]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lonelystar"

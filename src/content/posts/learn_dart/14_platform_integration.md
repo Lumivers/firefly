@@ -2,8 +2,8 @@
 title: "第十四章 平台集成：窗口管理、系统托盘与进程控制"
 published: 2026-03-30
 pinned: false
-description: "目标：掌握 Dart/Flutter 与操作系统平台的交互。Lumi-Hub 是一个桌面应用，大量使用了窗口管理、系统托盘、进程启动/终止、文件 I/O、环境变量等平台能力。本章通过 Lumi-Hub 的完整启动→运行→退出流程，讲透 Dart 的 `dart:io` 库和 Flutter 桌面插件的用法。"
-tags: [Flutter, Dart, 平台集成, 窗口管理, 系统托盘]
+description: "跨越 Dart 与 OS 的边界。深入实战 window_manager 与 tray_manager，掌握桌面应用的窗口控制、系统托盘及底层进程生命周期管理。"
+tags: [Flutter, 桌面开发, 进程管理, 平台集成]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lonelystar"

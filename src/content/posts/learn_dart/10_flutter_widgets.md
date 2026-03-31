@@ -2,8 +2,8 @@
 title: "第十章 Flutter 核心：Widget、State 与生命周期"
 published: 2026-03-30
 pinned: false
-description: "目标：理解 Flutter 的 Widget 系统和 State 生命周期。Flutter 的 UI 构建方式和传统 GUI 框架（Qt、MFC）差异极大——一切皆 Widget，声明式 UI，不可变 Widget + 可变 State。"
-tags: [Flutter, Dart, Widget, State, 生命周期]
+description: "开启 Flutter 开发之旅。从渲染引擎到 Widget 树，深入理解 StatelessWidget 与 StatefulWidget 的生命周期，掌握构建复杂界面的基石。"
+tags: [Flutter, Widget, 生命管理, UI框架]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lonelystar"

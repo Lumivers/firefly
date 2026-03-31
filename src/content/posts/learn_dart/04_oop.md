@@ -2,8 +2,8 @@
 title: "第四章 面向对象：Dart 的类体系"
 published: 2026-03-30
 pinned: false
-description: "全面掌握 Dart 的 OOP 体系。Dart 的面向对象和 C++ 有相似骨架，但在构造函数、访问控制、混入（mixin）等方面有重大差异。这些是 Flutter 框架的根基。"
-tags: [Dart, C++, 面向对象, 类, 构造函数, 混入]
+description: "**超越传统类继承。** 相比 C++ 的多继承，Dart 的 Mixin 提供了更灵活的代码复用方案。掌握 copyWith 模式，拥抱不可变性。"
+tags: [Dart, OOP, Mixin]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lonelystar"

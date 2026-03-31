@@ -2,8 +2,8 @@
 title: "第一章 Dart 速览：与 C++ 的异同"
 published: 2026-03-30
 pinned: false
-description: "用最快的速度建立 Dart 的第一印象。如果你写过 C++，这一章会帮你把已有知识迁移过来，同时把 Dart 独有的重要概念（尤其是 Null Safety）讲透。"
-tags: [Dart, C++, 基础, Null Safety]
+description: "**从 C++ 迈向 Dart 的第一步。** 快速建立 Dart 的直观印象，深入解析如何从根源上消灭“空指针崩溃”的杀手锏。"
+tags: [Dart, Basics, Null Safety]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lonelystar"

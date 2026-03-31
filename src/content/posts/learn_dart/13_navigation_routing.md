@@ -2,8 +2,8 @@
 title: "第十三章 导航、路由与主题"
 published: 2026-03-30
 pinned: false
-description: "目标：掌握 Flutter 的页面导航体系和主题系统。Lumi-Hub 用了两种导航模式——状态驱动的条件渲染和 Navigator 的命令式导航，以及完整的明暗主题切换体系。"
-tags: [Flutter, Dart, 导航, 路由, 主题]
+description: "掌握 Flutter 的导航艺术。从状态驱动的条件渲染到 Navigator 的命令式调用，结合 Material 3 主题系统，打造流畅且统一的用户交互体验。"
+tags: [Flutter, 路由导航, 主题系统, Material3]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lonelystar"

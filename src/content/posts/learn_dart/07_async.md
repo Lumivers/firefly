@@ -2,8 +2,8 @@
 title: "第七章 异步编程：Future、async/await"
 published: 2026-03-30
 pinned: false
-description: "目标：彻底理解 Dart 的异步模型。Dart 是单线程语言，但通过事件循环和 Future/async/await 实现高效的异步编程。这和 C++ 的多线程模型截然不同，是 Dart 最需要转变思维的部分。"
-tags: [Dart, C++, 异步, Future, async/await]
+description: "解开 Dart 异步编程的秘密。深入理解 Future、async/await 与 Completer，学习如何优雅地处理非阻塞 I/O，让你的应用响应如飞。"
+tags: [Dart, 异步编程, Future, EventLoop]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lonelystar"

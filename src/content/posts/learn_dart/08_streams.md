@@ -2,8 +2,8 @@
 title: "第八章 Stream 与响应式编程"
 published: 2026-03-30
 pinned: false
-description: "目标：掌握 Dart 的 Stream 系统。如果说 Future 是'异步的**一个**值'，那 Stream 就是'异步的**一系列**值'。Stream 是 WebSocket 通信、事件监听、UI 响应的基石。"
-tags: [Dart, C++, Stream, 响应式编程]
+description: "掌握响应式编程的核心。从 StreamController 到 StreamTransformer，带你领略数据流在 Dart 中的强大威力，轻松应对实时数据交互场景。"
+tags: [Dart, Stream, 响应式编程, 事件流]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lonelystar"

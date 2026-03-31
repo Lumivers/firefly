@@ -2,8 +2,8 @@
 title: "第二章 控制流与集合"
 published: 2026-03-30
 pinned: false
-description: "掌握 Dart 的控制流语法和集合操作。控制流大部分和 C++ 相同（快速过），集合操作是 Dart 日常开发的（高频核心），必须吃透。"
-tags: [Dart, C++, 控制流, 集合]
+description: "**像操作 STL 一样优雅。** 探索 Dart 强大的集合操作符与函数式编程范式，让你的控制逻辑告别冗长循环。"
+tags: [Dart, Control Flow, Collections]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lonelystar"
