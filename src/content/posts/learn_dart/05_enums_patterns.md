@@ -1,6 +1,6 @@
 ---
 title: "第五章 枚举、模式匹配与 Dart 3 新特性"
-published: 2026-03-30
+published: 2026-03-19
 pinned: false
 description: "**Dart 3 的究极进化。** 见识比 C++ 强大百倍的增强枚举，以及如何利用模式匹配优雅地解构复杂 JSON 数据。"
 tags: [Dart, Enums, Pattern Matching]
@@ -781,4 +781,4 @@ switch (command) {
 
 ---
 
-> 📖 下一章：[第 6 章 错误处理与异常](./06_error_handling.md) —— try/catch/finally、自定义异常、rethrow 等完整的错误处理体系。
+> 📖 下一章：[第 6 章 错误处理与异常](../06_error_handling.md) —— try/catch/finally、自定义异常、rethrow 等完整的错误处理体系。

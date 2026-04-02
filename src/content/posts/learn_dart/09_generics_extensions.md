@@ -1,6 +1,6 @@
 ---
 title: "第九章 泛型与扩展方法"
-published: 2026-03-30
+published: 2026-03-23
 pinned: false
 description: "探索 Dart 的高级进阶语法。通过泛型提升代码复用率，利用扩展方法（Extensions）为已有类注入新功能，让你的代码更加优雅、精炼。"
 tags: [Dart, 泛型, 扩展方法, 代码复用]
@@ -706,4 +706,4 @@ sidebar: Color.lerp(
 ---
 
 > 🎉 **第二部分"Dart 进阶特性"（Ch 7-9）全部完成！**  
-> 📖 下一章：[第 10 章 Flutter 核心：Widget、State 与生命周期](./10_flutter_widgets.md) —— 进入 Flutter 框架领域。
+> 📖 下一章：[第 10 章 Flutter 核心：Widget、State 与生命周期](../10_flutter_widgets.md) —— 进入 Flutter 框架领域。

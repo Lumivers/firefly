@@ -1,6 +1,6 @@
 ---
 title: "第三章 函数、闭包与高阶函数"
-published: 2026-03-30
+published: 2026-03-17
 pinned: false
 description: "**理解 Dart 的一等公民。** 掌握命名参数、级联运算符与闭包的高级用法，写出极具表达力的代码。"
 tags: [Dart, Functions, Closures]
@@ -557,4 +557,4 @@ _scroll.addListener(_onScrollMaybeLoadOlder);  // 方法引用作为监听器
 
 ---
 
-> 📖 下一章：[第 4 章 面向对象：Dart 的类体系](./04_oop.md) —— 构造函数语法糖、factory、mixin 等 Dart 独有的 OOP 特性。
+> 📖 下一章：[第 4 章 面向对象：Dart 的类体系](../04_oop.md) —— 构造函数语法糖、factory、mixin 等 Dart 独有的 OOP 特性。

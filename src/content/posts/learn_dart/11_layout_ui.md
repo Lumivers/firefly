@@ -1,6 +1,6 @@
 ---
 title: "第十一章 Flutter 布局与常用 Widget"
-published: 2026-03-30
+published: 2026-03-25
 pinned: false
 description: "从 Row/Column 到 Stack/Container，深度解析 Flutter 的声明式布局系统。学习如何通过组件组合而非继承，构建出高性能且极具美感的桌面级 UI。"
 tags: [Flutter, 布局系统, Widget, 声明式UI]
@@ -774,4 +774,4 @@ ScaffoldMessenger.of(context).showSnackBar(
 
 ---
 
-> 📖 下一章：[第 12 章 状态管理：Provider 与 ChangeNotifier](./12_state_management.md) —— 深入 Flutter 最核心的架构概念。
+> 📖 下一章：[第 12 章 状态管理：Provider 与 ChangeNotifier](../12_state_management.md) —— 深入 Flutter 最核心的架构概念。

@@ -1,6 +1,6 @@
 ---
 title: "第四章 面向对象：Dart 的类体系"
-published: 2026-03-30
+published: 2026-03-18
 pinned: false
 description: "**超越传统类继承。** 相比 C++ 的多继承，Dart 的 Mixin 提供了更灵活的代码复用方案。掌握 copyWith 模式，拥抱不可变性。"
 tags: [Dart, OOP, Mixin]
@@ -1041,4 +1041,4 @@ class AppTheme {
 
 ---
 
-> 📖 下一章：[第 5 章 枚举、模式匹配与 Dart 3 新特性](./05_enums_patterns.md) —— switch 表达式、sealed class、Records 等 Dart 3 独有特性。
+> 📖 下一章：[第 5 章 枚举、模式匹配与 Dart 3 新特性](../05_enums_patterns.md) —— switch 表达式、sealed class、Records 等 Dart 3 独有特性。

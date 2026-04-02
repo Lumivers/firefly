@@ -1,6 +1,6 @@
 ---
 title: "第十三章 导航、路由与主题"
-published: 2026-03-30
+published: 2026-03-27
 pinned: false
 description: "掌握 Flutter 的导航艺术。从状态驱动的条件渲染到 Navigator 的命令式调用，结合 Material 3 主题系统，打造流畅且统一的用户交互体验。"
 tags: [Flutter, 路由导航, 主题系统, Material3]
@@ -486,4 +486,4 @@ MaterialApp(
 ---
 
 > 🎉 **第三部分"Flutter 框架"（Ch 10-13）全部完成！**  
-> 📖 下一章：[第 14 章 平台集成：窗口管理、托盘与进程](./14_platform_integration.md) —— 进入工程实战领域。
+> 📖 下一章：[第 14 章 平台集成：窗口管理、托盘与进程](../14_platform_integration.md) —— 进入工程实战领域。

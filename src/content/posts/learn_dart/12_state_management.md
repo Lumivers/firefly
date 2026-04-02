@@ -1,6 +1,6 @@
 ---
 title: "第十二章 状态管理：Provider 与 ChangeNotifier"
-published: 2026-03-30
+published: 2026-03-26
 pinned: false
 description: "状态管理是 Flutter 应用的灵魂。本章深入剖析 Provider 与 ChangeNotifier，带你掌握如何在复杂应用中实现优雅的数据流转与 UI 响应。"
 tags: [Flutter, 状态管理, Provider, ChangeNotifier]
@@ -604,4 +604,4 @@ List<Message> get messages => _messages;     // ❌ 外部能修改
 
 ---
 
-> 📖 下一章：[第 13 章 导航、路由与主题](./13_navigation_routing.md) —— Navigator、MaterialApp 路由、ThemeData 主题系统。
+> 📖 下一章：[第 13 章 导航、路由与主题](../13_navigation_routing.md) —— Navigator、MaterialApp 路由、ThemeData 主题系统。

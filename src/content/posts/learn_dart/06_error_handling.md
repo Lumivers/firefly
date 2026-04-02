@@ -1,6 +1,6 @@
 ---
 title: "第六章 错误处理与异常"
-published: 2026-03-30
+published: 2026-03-20
 pinned: false
 description: "深入 Dart 的错误处理机制。从基础的 try-catch 到自定义异常，学习如何利用结果类型与异常捕获，构建一个健壮且具有容错能力的现代化应用。"
 tags: [Dart, 错误处理, 异常归因, 健壮性]
@@ -783,4 +783,4 @@ Future<void> start() async {
 
 ---
 
-> 📖 下一章：[第 7 章 异步编程：Future、async/await](./07_async.md) —— 深入 Dart 的单线程事件循环模型和异步编程范式。
+> 📖 下一章：[第 7 章 异步编程：Future、async/await](../07_async.md) —— 深入 Dart 的单线程事件循环模型和异步编程范式。

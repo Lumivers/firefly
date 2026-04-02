@@ -1,6 +1,6 @@
 ---
 title: "第十章 Flutter 核心：Widget、State 与生命周期"
-published: 2026-03-30
+published: 2026-03-24
 pinned: false
 description: "开启 Flutter 开发之旅。从渲染引擎到 Widget 树，深入理解 StatelessWidget 与 StatefulWidget 的生命周期，掌握构建复杂界面的基石。"
 tags: [Flutter, Widget, 生命管理, UI框架]
@@ -637,4 +637,4 @@ ListView(
 
 ---
 
-> 📖 下一章：[第 11 章 Flutter 布局与常用 Widget](./11_layout_ui.md) —— Row/Column/ListView/Scaffold 等核心布局组件。
+> 📖 下一章：[第 11 章 Flutter 布局与常用 Widget](../11_layout_ui.md) —— Row/Column/ListView/Scaffold 等核心布局组件。

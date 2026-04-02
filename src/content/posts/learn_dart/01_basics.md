@@ -1,6 +1,6 @@
 ---
 title: "第一章 Dart 速览：与 C++ 的异同"
-published: 2026-03-30
+published: 2026-03-15
 pinned: false
 description: "**从 C++ 迈向 Dart 的第一步。** 快速建立 Dart 的直观印象，深入解析如何从根源上消灭“空指针崩溃”的杀手锏。"
 tags: [Dart, Basics, Null Safety]
@@ -515,4 +515,4 @@ import '../services/ws_service.dart';
 
 ---
 
-> 📖 下一章：[第 2 章 控制流与集合](./02_control_flow.md) —— 深入 Dart 的集合类型和函数式集合操作。
+> 📖 下一章：[第 2 章 控制流与集合](../02_control_flow.md) —— 深入 Dart 的集合类型和函数式集合操作。

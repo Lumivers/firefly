@@ -1,6 +1,6 @@
 ---
 title: "第八章 Stream 与响应式编程"
-published: 2026-03-30
+published: 2026-03-22
 pinned: false
 description: "掌握响应式编程的核心。从 StreamController 到 StreamTransformer，带你领略数据流在 Dart 中的强大威力，轻松应对实时数据交互场景。"
 tags: [Dart, Stream, 响应式编程, 事件流]
@@ -607,4 +607,4 @@ await for (var data in stream) {
 
 ---
 
-> 📖 下一章：[第 9 章 泛型与扩展方法](./09_generics_extensions.md) —— 深入 Dart 的泛型系统和 Extension methods。
+> 📖 下一章：[第 9 章 泛型与扩展方法](../09_generics_extensions.md) —— 深入 Dart 的泛型系统和 Extension methods。

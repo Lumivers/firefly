@@ -1,6 +1,6 @@
 ---
 title: "第十五章 WebSocket 实战：通信协议与消息处理"
-published: 2026-03-30
+published: 2026-03-29
 pinned: false
 description: "深度解析 WebSocket 全双工通信。通过异步 Stream 与 Completer 模式，构建一个支持流式回复、文件分片上传及心跳重连的高性能网络系统。"
 tags: [Dart, WebSocket, 异步编程, 网络协议]
@@ -764,4 +764,4 @@ void sendMessage(String text, {List<Map<String, dynamic>> attachments = const []
 
 ---
 
-> 📖 下一章：[第 16 章 项目架构总览与开发规范](./16_project_architecture.md) —— 回顾整个 Lumi-Hub 的架构设计，总结 Dart/Flutter 最佳实践。
+> 📖 下一章：[第 16 章 项目架构总览与开发规范](../16_project_architecture.md) —— 回顾整个 Lumi-Hub 的架构设计，总结 Dart/Flutter 最佳实践。

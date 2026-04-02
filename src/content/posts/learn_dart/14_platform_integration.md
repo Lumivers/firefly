@@ -1,6 +1,6 @@
 ---
 title: "第十四章 平台集成：窗口管理、系统托盘与进程控制"
-published: 2026-03-30
+published: 2026-03-28
 pinned: false
 description: "跨越 Dart 与 OS 的边界。深入实战 window_manager 与 tray_manager，掌握桌面应用的窗口控制、系统托盘及底层进程生命周期管理。"
 tags: [Flutter, 桌面开发, 进程管理, 平台集成]
@@ -684,4 +684,4 @@ while (stopwatch.elapsed < timeout) {
 
 ---
 
-> 📖 下一章：[第 15 章 WebSocket 实战：通信协议与消息处理](./15_networking.md) —— 深入 WsService 的完整网络通信架构。
+> 📖 下一章：[第 15 章 WebSocket 实战：通信协议与消息处理](../15_networking.md) —— 深入 WsService 的完整网络通信架构。

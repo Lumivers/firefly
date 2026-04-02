@@ -1,6 +1,6 @@
 ---
 title: "第二章 控制流与集合"
-published: 2026-03-30
+published: 2026-03-16
 pinned: false
 description: "**像操作 STL 一样优雅。** 探索 Dart 强大的集合操作符与函数式编程范式，让你的控制逻辑告别冗长循环。"
 tags: [Dart, Control Flow, Collections]
@@ -628,4 +628,4 @@ var allHeaders = {
 
 ---
 
-> 📖 下一章：[第 3 章 函数、闭包与高阶函数](./03_functions.md) —— 深入命名参数、闭包和级联运算符。
+> 📖 下一章：[第 3 章 函数、闭包与高阶函数](../03_functions.md) —— 深入命名参数、闭包和级联运算符。
