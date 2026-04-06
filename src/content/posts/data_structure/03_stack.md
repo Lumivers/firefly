@@ -597,7 +597,161 @@ public:
 
 ---
 
-### 3.5.7 面试题速查表
+### 3.5.7 接雨水 (LeetCode 42) —— 单调栈的另一个经典
+
+> 给定 n 个非负整数表示每个宽度为 1 的柱子的高度，计算下雨后能接多少水。
+
+与 LC 84（最大矩形）齐名的单调栈 Hard 题。面试出现频率极高。
+
+```cpp
+int trap(std::vector<int>& height) {
+    std::stack<int> stk;  // 存下标，对应高度单调递减
+    int water = 0;
+
+    for (int i = 0; i < static_cast<int>(height.size()); ++i) {
+        // 当前柱子比栈顶高 → 可以接水
+        while (!stk.empty() && height[i] > height[stk.top()]) {
+            int bottom = stk.top();  // 凹槽底部
+            stk.pop();
+
+            if (stk.empty()) break;  // 左边没有墙，接不住水
+
+            int left = stk.top();    // 左墙
+            int w = i - left - 1;    // 宽度
+            int h = std::min(height[left], height[i]) - height[bottom];  // 高度
+            water += w * h;
+        }
+
+        stk.push(i);
+    }
+    return water;
+}
+// 时间 O(n), 空间 O(n)
+```
+
+**图解推演**（`height = [0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1]`）：
+
+```
+遍历到 i=3 (h=2)：
+  栈顶 i=2 (h=0) < 2 → 凹槽！
+    bottom=0, left=1(h=1), right=3(h=2)
+    水 = (3-1-1) × (min(1,2)-0) = 1 × 1 = 1
+
+遍历到 i=7 (h=3)：
+  连续弹出多个凹槽，逐层计算积水
+  这就是单调栈"横向分层"计算的精髓
+
+总积水 = 6
+```
+
+**三种解法对比**：
+
+| 方法 | 时间 | 空间 | 思路 |
+|------|------|------|------|
+| 暴力（每个位置找左右最大值）| O(n²) | O(1) | 直观但慢 |
+| DP 预处理 | O(n) | O(n) | 预计算 left_max[] 和 right_max[] |
+| **单调栈** | O(n) | O(n) | 横向分层，遇到右墙时计算 |
+| 双指针 | O(n) | **O(1)** | 最优空间，但较难理解 |
+
+```cpp
+// 双指针解法（O(1) 空间）
+int trap_two_pointers(std::vector<int>& height) {
+    int left = 0, right = height.size() - 1;
+    int left_max = 0, right_max = 0;
+    int water = 0;
+
+    while (left < right) {
+        if (height[left] < height[right]) {
+            left_max = std::max(left_max, height[left]);
+            water += left_max - height[left];  // 被左右较矮的一侧限制
+            ++left;
+        } else {
+            right_max = std::max(right_max, height[right]);
+            water += right_max - height[right];
+            --right;
+        }
+    }
+    return water;
+}
+// 时间 O(n), 空间 O(1)
+```
+
+> 💡 **面试中的选择**：如果面试官没有具体要求，优先写单调栈解法——它和 LC 84 同一个模式，说明你对单调栈理解深刻。如果追问空间优化，再给出双指针版本。
+
+### 3.5.8 字符串解码 (LeetCode 394)
+
+> 给定编码字符串如 `"3[a2[c]]"`，返回解码字符串 `"accaccacc"`。
+
+**核心思路**：用**两个栈**——一个存数字（重复次数），一个存字符串（外层已累积的结果）。遇到 `[` 就把当前状态压栈，遇到 `]` 就弹栈拼接。
+
+```cpp
+std::string decodeString(const std::string& s) {
+    std::stack<int> num_stack;
+    std::stack<std::string> str_stack;
+    std::string current;
+    int num = 0;
+
+    for (char c : s) {
+        if (std::isdigit(c)) {
+            num = num * 10 + (c - '0');  // 处理多位数（如 "12[a]"）
+        }
+        else if (c == '[') {
+            // 保存当前状态
+            num_stack.push(num);
+            str_stack.push(current);
+            // 重置
+            num = 0;
+            current.clear();
+        }
+        else if (c == ']') {
+            // 弹出重复次数和外层字符串
+            int repeat = num_stack.top(); num_stack.pop();
+            std::string outer = str_stack.top(); str_stack.pop();
+
+            // 重复 current，拼到 outer 后面
+            for (int i = 0; i < repeat; ++i) {
+                outer += current;
+            }
+            current = std::move(outer);
+        }
+        else {
+            current += c;  // 普通字符直接累积
+        }
+    }
+    return current;
+}
+```
+
+**图解**（`"3[a2[c]]"`）：
+
+```
+c='3': num=3
+c='[': push(3, ""), num=0, current=""
+         num_stack: [3]  str_stack: [""]
+
+c='a': current="a"
+
+c='2': num=2
+c='[': push(2, "a"), num=0, current=""
+         num_stack: [3,2]  str_stack: ["","a"]
+
+c='c': current="c"
+
+c=']': pop(2, "a") → outer = "a" + "c"×2 = "acc"
+         current = "acc"
+         num_stack: [3]  str_stack: [""]
+
+c=']': pop(3, "") → outer = "" + "acc"×3 = "accaccacc"
+         current = "accaccacc"
+
+结果: "accaccacc" ✅
+```
+
+> 💡 **栈的嵌套性**：字符串解码的嵌套括号与函数调用的嵌套、括号匹配的嵌套本质相同——**每进入一层嵌套就压栈保存上下文，离开一层嵌套就弹栈恢复上下文**。"栈 = 嵌套结构的天然载体"。
+
+---
+
+### 3.5.9 面试题速查表
 
 | 题号 | 题目 | 核心技巧 | 难度 |
 |------|------|----------|------|

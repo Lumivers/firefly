@@ -808,7 +808,156 @@ ListNode* getIntersectionNode(ListNode* headA, ListNode* headB) {
 // 精妙！两指针各走一遍 A+B（或 B+A），总步数相同
 ```
 
-### 2.5.8 链表排序 (LeetCode 148)
+### 2.5.8 K 个一组翻转链表 (LeetCode 25) —— Hard 经典
+
+> 给定链表，每 k 个节点一组进行翻转。如果剩余不足 k 个则保持原样。
+
+这是链表题中最经典的 Hard 题，面试出现频率非常高。核心思路：**分组 → 组内反转 → 组间拼接**。
+
+```cpp
+ListNode* reverseKGroup(ListNode* head, int k) {
+    ListNode dummy(0);
+    dummy.next = head;
+    ListNode* group_prev = &dummy;  // 每组的前驱
+
+    while (true) {
+        // 1. 检查剩余节点是否 >= k 个
+        ListNode* kth = group_prev;
+        for (int i = 0; i < k; ++i) {
+            kth = kth->next;
+            if (!kth) return dummy.next;  // 不足 k 个，结束
+        }
+
+        ListNode* group_next = kth->next;  // 下一组的起点
+
+        // 2. 反转当前组 [group_prev->next, kth]
+        ListNode* prev = group_next;  // 反转后尾部接上下一组
+        ListNode* curr = group_prev->next;
+        while (curr != group_next) {
+            ListNode* next = curr->next;
+            curr->next = prev;
+            prev = curr;
+            curr = next;
+        }
+
+        // 3. 拼接：更新前驱和后继
+        ListNode* new_group_first = prev;      // 反转后的组头 = kth
+        ListNode* new_group_last = group_prev->next;  // 反转后的组尾 = 原组头
+
+        group_prev->next = new_group_first;
+        group_prev = new_group_last;  // 移动到下一组的前驱
+    }
+}
+// 时间 O(n), 空间 O(1)
+```
+
+**图解**（`[1→2→3→4→5]`，k=2）：
+
+```
+初始: dummy → 1 → 2 → 3 → 4 → 5
+                  ↑       ↑
+               group_prev=dummy, kth=2
+
+第一组反转 [1,2]:
+  dummy → 2 → 1 → 3 → 4 → 5
+               ↑
+            group_prev=1
+
+第二组反转 [3,4]:
+  dummy → 2 → 1 → 4 → 3 → 5
+                        ↑
+                     group_prev=3
+
+不足 k=2 个，结束：
+  结果: 2 → 1 → 4 → 3 → 5
+```
+
+> 💡 **面试技巧**：这道题的关键在于**正确维护 group_prev 指针**。画图把每一步的指针变化标清楚是写对这题的唯一方法。不画图直接写几乎必错。
+
+### 2.5.9 复制带随机指针的链表 (LeetCode 138)
+
+> 链表每个节点除了 `next` 指针外，还有一个 `random` 指针指向任意节点或 `null`。深拷贝整个链表。
+
+**方法一：哈希表映射**
+
+```cpp
+struct RandomNode {
+    int val;
+    RandomNode* next;
+    RandomNode* random;
+    RandomNode(int x) : val(x), next(nullptr), random(nullptr) {}
+};
+
+RandomNode* copyRandomList(RandomNode* head) {
+    if (!head) return nullptr;
+
+    // key = 原节点, value = 新节点
+    std::unordered_map<RandomNode*, RandomNode*> map;
+
+    // 第一遍：创建所有新节点
+    RandomNode* curr = head;
+    while (curr) {
+        map[curr] = new RandomNode(curr->val);
+        curr = curr->next;
+    }
+
+    // 第二遍：连接 next 和 random
+    curr = head;
+    while (curr) {
+        map[curr]->next = map[curr->next];
+        map[curr]->random = map[curr->random];
+        curr = curr->next;
+    }
+
+    return map[head];
+}
+// 时间 O(n), 空间 O(n)
+```
+
+**方法二：交错拼接法（O(1) 空间）**
+
+```cpp
+RandomNode* copyRandomList_O1(RandomNode* head) {
+    if (!head) return nullptr;
+
+    // 第一步：在每个原节点后面插入一个克隆节点
+    // 1 → 1' → 2 → 2' → 3 → 3'
+    RandomNode* curr = head;
+    while (curr) {
+        RandomNode* clone = new RandomNode(curr->val);
+        clone->next = curr->next;
+        curr->next = clone;
+        curr = clone->next;
+    }
+
+    // 第二步：设置克隆节点的 random 指针
+    curr = head;
+    while (curr) {
+        if (curr->random) {
+            curr->next->random = curr->random->next;  // 精髓！
+        }
+        curr = curr->next->next;
+    }
+
+    // 第三步：拆分两个链表
+    RandomNode dummy(0);
+    RandomNode* clone_tail = &dummy;
+    curr = head;
+    while (curr) {
+        clone_tail->next = curr->next;
+        clone_tail = clone_tail->next;
+        curr->next = curr->next->next;  // 恢复原链表
+        curr = curr->next;
+    }
+
+    return dummy.next;
+}
+// 时间 O(n), 空间 O(1)
+```
+
+> 💡 **交错拼接法的精妙之处**：`curr->random->next` 恰好就是 `curr->random` 的克隆节点！因为我们在第一步中把克隆节点插在了原节点的正后方。这种"利用位置关系代替哈希表"的思想非常巧妙。
+
+### 2.5.11 链表排序 (LeetCode 148)
 
 > 在 O(n log n) 时间和 O(1) 空间内排序链表。
 
@@ -874,7 +1023,7 @@ static ListNode* _merge(ListNode* l1, ListNode* l2, ListNode* prev) {
 // 时间 O(n log n), 空间 O(1)
 ```
 
-### 2.5.9 面试题速查表
+### 2.5.12 面试题速查表
 
 | 题号 | 题目 | 核心技巧 | 难度 |
 |------|------|----------|------|

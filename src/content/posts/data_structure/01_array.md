@@ -826,7 +826,145 @@ int search(std::vector<int>& nums, int target) {
 
 ---
 
-### 1.5.6 面试题速查表
+### 1.5.6 Kadane 算法 —— 最大子数组和 (LeetCode 53)
+
+> 给定整数数组，找到具有最大和的连续子数组，返回其最大和。
+
+这道题是 DP / 贪心的经典入门，也是数组类面试的高频题之一。
+
+```cpp
+int maxSubArray(std::vector<int>& nums) {
+    int max_sum = nums[0];
+    int current_sum = nums[0];
+
+    for (int i = 1; i < static_cast<int>(nums.size()); ++i) {
+        // 核心决策：接上前面的子数组，还是从"我"重新开始？
+        current_sum = std::max(nums[i], current_sum + nums[i]);
+        max_sum = std::max(max_sum, current_sum);
+    }
+    return max_sum;
+}
+// 时间 O(n), 空间 O(1)
+```
+
+**图解推演**（`nums = [-2, 1, -3, 4, -1, 2, 1, -5, 4]`）：
+
+```
+i=0: current=-2, max=-2
+i=1: max(1, -2+1=−1) → current=1,  max=1
+i=2: max(-3, 1-3=−2)  → current=−2, max=1
+i=3: max(4, -2+4=2)   → current=4,  max=4    ← 从 4 重新开始
+i=4: max(-1, 4-1=3)   → current=3,  max=4
+i=5: max(2, 3+2=5)    → current=5,  max=5
+i=6: max(1, 5+1=6)    → current=6,  max=6    ★ 最终答案
+i=7: max(-5, 6-5=1)   → current=1,  max=6
+i=8: max(4, 1+4=5)    → current=5,  max=6
+
+答案：6（子数组 [4, -1, 2, 1]）
+```
+
+> 💡 **Kadane 算法的本质**：在每个位置做一个贪心决策——如果前面累积的 `current_sum` 是负数，它对后续元素只有"拖后腿"的作用，不如直接抛弃，从当前元素重新开始。
+
+**面试追问**：
+- "如果要返回子数组本身而不只是和？" → 记录 `start` 和 `end` 下标
+- "如果要求最小子数组和？" → 把 `max` 换成 `min`
+- "如果数组是环形的？(LC 918)" → `max(普通 Kadane, total_sum - 最小子数组和)`
+
+### 1.5.7 合并区间 (LeetCode 56)
+
+> 给出若干个区间，合并所有重叠的区间。
+
+```cpp
+std::vector<std::vector<int>> merge(std::vector<std::vector<int>>& intervals) {
+    if (intervals.empty()) return {};
+
+    // 1. 按起点排序
+    std::sort(intervals.begin(), intervals.end(),
+        [](const auto& a, const auto& b) { return a[0] < b[0]; });
+
+    std::vector<std::vector<int>> merged;
+    merged.push_back(intervals[0]);
+
+    for (int i = 1; i < static_cast<int>(intervals.size()); ++i) {
+        auto& last = merged.back();
+
+        if (intervals[i][0] <= last[1]) {
+            // 有重叠 → 合并（取更大的右端点）
+            last[1] = std::max(last[1], intervals[i][1]);
+        } else {
+            // 无重叠 → 直接加入
+            merged.push_back(intervals[i]);
+        }
+    }
+    return merged;
+}
+// 时间 O(n log n) 排序主导, 空间 O(n) 结果
+```
+
+**图解**：
+
+```
+输入: [[1,3],[2,6],[8,10],[15,18]]
+排序后: [[1,3],[2,6],[8,10],[15,18]]
+
+[1,3] → merged = [[1,3]]
+[2,6] → 2 <= 3 重叠！ merged = [[1,6]]    ← max(3,6)=6
+[8,10] → 8 > 6 不重叠  merged = [[1,6],[8,10]]
+[15,18] → 15 > 10 不重叠 merged = [[1,6],[8,10],[15,18]]
+```
+
+> 💡 **扩展思考**：合并区间是"扫描线思想"的简化版。扫描线算法在游戏开发中用于碰撞检测（Sweep Line / Sweep and Prune）——按 X 轴排序后线性扫描，快速剔除不可能碰撞的对象对。
+
+### 1.5.8 除自身以外数组的乘积 (LeetCode 238)
+
+> 给定数组 nums，返回数组 answer，其中 answer[i] 等于 nums 中除 nums[i] 之外其余各元素的乘积。**不能用除法**，要求 O(n)。
+
+```cpp
+std::vector<int> productExceptSelf(std::vector<int>& nums) {
+    int n = nums.size();
+    std::vector<int> answer(n, 1);
+
+    // 第一遍：从左到右，计算前缀积
+    int prefix = 1;
+    for (int i = 0; i < n; ++i) {
+        answer[i] = prefix;
+        prefix *= nums[i];
+    }
+
+    // 第二遍：从右到左，乘上后缀积
+    int suffix = 1;
+    for (int i = n - 1; i >= 0; --i) {
+        answer[i] *= suffix;
+        suffix *= nums[i];
+    }
+
+    return answer;
+}
+// 时间 O(n), 空间 O(1)（answer 不算额外空间）
+```
+
+**图解**（`nums = [1, 2, 3, 4]`）：
+
+```
+第一遍（前缀积）:
+  answer = [1, 1, 2, 6]
+  含义: answer[i] = nums[0] × ... × nums[i-1]
+
+第二遍（后缀积）:
+  i=3: answer[3] = 6 × 1 = 6,   suffix = 4
+  i=2: answer[2] = 2 × 4 = 8,   suffix = 12
+  i=1: answer[1] = 1 × 12 = 12, suffix = 24
+  i=0: answer[0] = 1 × 24 = 24, suffix = 24
+
+  answer = [24, 12, 8, 6] ✅
+  验证: 2×3×4=24, 1×3×4=12, 1×2×4=8, 1×2×3=6 ✅
+```
+
+> 💡 **前缀和/前缀积的一般化**：前缀和解决"区间求和"，前缀积解决"排除某个元素的乘积"。本质上都是利用**可逆运算的预处理**。加法可逆所以前缀和更常见，乘法遇到 0 就不可逆，所以 LC 238 要求不用除法。
+
+---
+
+### 1.5.9 面试题速查表
 
 | 题号 | 题目 | 核心技巧 | 难度 |
 |------|------|----------|------|
