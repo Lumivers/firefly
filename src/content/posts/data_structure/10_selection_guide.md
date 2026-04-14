@@ -177,6 +177,131 @@ graph TD
 | **公会合并** | 并查集 | O(α(n)) 合并+查询 | Ch9 |
 | **地图连通性** | 并查集 / BFS | 验证全部可达 | Ch9 |
 
+### 进阶系统选型详解
+
+#### ECS (Entity Component System) 架构
+
+```
+ECS 是现代游戏引擎 (Unity DOTS, Bevy, EnTT) 的核心架构，
+数据结构选型直接决定性能:
+
+  Entity:   纯 ID (int)         → 数组下标或稀疏集合
+  Component: 纯数据 (POD)       → SoA 数组 (第 1 章)
+  System:   纯逻辑 (函数)       → 遍历 Component 数组
+
+关键数据结构:
+  ┌──────────────────────────────────────┐
+  │ Entity → Component 映射              │
+  │   方案 A: 稀疏集合 (Sparse Set)       │
+  │     → O(1) 查/增/删, 遍历连续        │
+  │   方案 B: unordered_map<Entity, Idx>  │
+  │     → 简单但遍历不连续               │
+  │   方案 C: Archetype 表               │
+  │     → 同类型组合的实体打包存储        │
+  │     → Unity DOTS / Flecs 的做法      │
+  └──────────────────────────────────────┘
+
+  Component 存储: SoA 数组 (Ch1)
+    Position:  [x0, x1, x2, ...] [y0, y1, y2, ...]
+    Velocity:  [vx0, vx1, ...]   [vy0, vy1, ...]
+    → SIMD 向量化友好, cache 命中率极高
+
+  System 调度: DAG + 拓扑排序 (Ch7)
+    PhysicsSystem 必须在 RenderSystem 之前
+    InputSystem 必须在 MovementSystem 之前
+    → 拓扑排序决定 System 执行顺序
+```
+
+#### 物理引擎
+
+```
+碰撞检测的两阶段:
+
+  Broad Phase (粗筛): 快速排除不可能碰撞的物体对
+    → Spatial Hashing: unordered_map<cell, vector<Entity>> (Ch5)
+    → Sort and Sweep: 排序数组 + 扫描线 (Ch1)
+    → BVH 树: 层级包围盒 (树结构, Ch6)
+    → 四叉树/八叉树: 空间递归划分 (N 叉树, Ch6)
+
+  Narrow Phase (精筛): 精确判断几何体碰撞
+    → 纯数学计算, 不依赖特殊数据结构
+
+  碰撞事件分发:
+    → 事件队列 (Ch4): 碰撞事件入队, 物理帧统一处理
+    → 回调注册: unordered_map<pair<TypeA,TypeB>, callback> (Ch5)
+
+  约束求解 (关节、铰链):
+    → 图结构 (Ch7): 刚体=节点, 关节=边
+    → 迭代求解器遍历约束图
+```
+
+#### 网络同步
+
+```
+多人游戏的网络架构大量依赖数据结构:
+
+  输入缓冲: 环形缓冲区 (Ch1)
+    → 存储最近 N 帧的输入, 支持回滚
+    → GGPO rollback netcode 的核心
+
+  快照系统: vector<EntityState> + 哈希表
+    → 每个 tick 的完整世界状态 (数组)
+    → entity_id → 状态映射 (哈希表)
+    → Delta 压缩: 只发送变化的部分
+
+  优先级消息队列: priority_queue (Ch4/Ch6d)
+    → 带宽有限时, 高优先级消息先发
+    → 如: 玩家血量变化 > 远处NPC移动
+
+  兴趣管理 (Area of Interest):
+    → Spatial Hashing (Ch5): 只同步玩家附近的实体
+    → 格子划分: unordered_map<cell, set<player>>
+
+  实体同步表:
+    → unordered_map<entity_id, NetworkState> (Ch5)
+    → 记录每个实体的同步状态 (已确认帧号、预测状态)
+
+  延迟补偿:
+    → 历史位置缓冲: 环形缓冲区 (Ch1)
+    → 按时间戳二分查找: 排序数组 + lower_bound (Ch1)
+```
+
+#### 程序化生成
+
+```
+Roguelike / 开放世界的过程生成:
+
+  BSP 地图切割: 二叉树 (Ch6)
+    → 递归二分空间, 每个叶子是一个房间
+
+  房间连通: 并查集 + MST (Ch9, Ch7)
+    → Kruskal 按距离选走廊, 并查集判连通
+
+  地形高度图: 二维数组 (Ch1)
+    → Perlin Noise 填充, GPU 采样
+
+  物品掉落表: 加权随机
+    → 排序数组 + 前缀和 + 二分查找 (Ch1)
+    → 权重累积后 lower_bound 选中
+
+  Chunk 管理: unordered_map<ChunkCoord, Chunk> (Ch5)
+    → Minecraft 风格: 按坐标哈希加载/卸载 Chunk
+```
+
+#### 音频系统
+
+```
+  混音通道管理: priority_queue (Ch4)
+    → 通道数有限 (如 32 个), 高优先级声音抢占低优先级
+    → 类似 Top-K 问题
+
+  音频资源缓存: LRU Cache (Ch2 + Ch5)
+    → 最近播放的音频留在内存, 不常用的淘汰
+
+  事件驱动播放: 事件队列 (Ch4)
+    → 游戏逻辑线程发事件, 音频线程消费
+```
+
 ### 常见组合套路
 
 实际工程中，很少单独使用一种数据结构。**经典组合**才是面试和工程的核心：

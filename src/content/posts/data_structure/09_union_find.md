@@ -876,6 +876,85 @@ std::vector<double> calcEquation(
 }
 ```
 
+### 冗余连接 II —— 有向图版 (LeetCode 685)
+
+> 给定一个有根树（有向），多了一条边导致不再是树。找出多余的那条边。注意：如果有多个答案，返回输入中最后出现的那条。
+
+**🧠 思路推导（面试时怎么想到的）**：
+
+```
+Step 1: 与 LC 684 的区别
+  LC 684 是无向图, 直接并查集判环即可。
+  LC 685 是有向图, 多了一条边可能造成:
+    Case A: 某个节点有 2 个父节点 (入度=2), 无环
+    Case B: 某个节点有 2 个父节点 (入度=2), 且形成环
+    Case C: 没有入度=2 的节点, 但有环 (环上某条是多余的)
+
+Step 2: 观察
+  树的性质: 除根外每个节点恰好 1 个父节点 (入度=1)
+  多一条边 → 要么某节点入度变 2, 要么形成环
+
+Step 3: 方案
+  1. 先扫描所有边, 找入度=2 的节点 (如果有)
+     → 记录指向它的两条边: candidate1 (先出现) 和 candidate2 (后出现)
+  2. 先尝试删 candidate2 (题目要求返回最后出现的)
+     → 用并查集加剩余边, 如果无环 → candidate2 就是答案
+     → 如果有环 → 说明 candidate2 不是多余的, candidate1 是答案
+  3. 如果没有入度=2 的节点 → Case C
+     → 直接并查集判环 (和 LC 684 一样)
+```
+
+```cpp
+std::vector<int> findRedundantDirectedConnection(
+    std::vector<std::vector<int>>& edges)
+{
+    int n = edges.size();
+    std::vector<int> parent(n + 1, 0);  // parent[i] = i 的父节点
+
+    // Step 1: 找入度=2 的节点
+    std::vector<int> cand1, cand2;
+    for (auto& e : edges) {
+        if (parent[e[1]] == 0) {
+            parent[e[1]] = e[0];  // 记录父节点
+        } else {
+            // e[1] 已有父节点 → 入度=2!
+            cand1 = {parent[e[1]], e[1]};  // 先出现的边
+            cand2 = e;                      // 后出现的边
+        }
+    }
+
+    // 重建并查集
+    std::iota(parent.begin(), parent.end(), 0);
+
+    auto find = [&](int x) {
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]];  // 路径压缩
+            x = parent[x];
+        }
+        return x;
+    };
+
+    for (auto& e : edges) {
+        if (e == cand2) continue;  // 先尝试删 cand2
+
+        int rx = find(e[0]), ry = find(e[1]);
+        if (rx == ry) {
+            // 有环!
+            // 如果有 cand1 → cand2 不是问题, cand1 才是
+            // 如果没有 cand1 → 这条边是多余的 (Case C)
+            return cand1.empty() ? e : cand1;
+        }
+        parent[ry] = rx;
+    }
+
+    // 删 cand2 后无环 → cand2 就是多余的
+    return cand2;
+}
+// 时间 O(n × α(n)), 空间 O(n)
+```
+
+> 💡 **面试价值**：LC 685 是并查集类题目中最难的之一，面试官通过这道题考察你的**分类讨论能力**——能不能识别出三种 case 并统一处理。核心 insight：有向图的多余边要么破坏了"每个非根节点恰好一个父节点"的性质（入度 2），要么引入了环。
+
 ---
 
 ## 9.7 🎮 游戏实战场景
