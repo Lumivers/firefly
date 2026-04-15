@@ -13,6 +13,9 @@ function extractText(node) {
 
 export function rehypeMermaid() {
 	return (tree) => {
+		// 标记：每页只注入一次渲染脚本，避免重复内联 ~16KB 的 JS
+		let scriptInjected = false;
+
 		visit(tree, "element", (node) => {
 			if (
 				node.tagName === "div" &&
@@ -46,19 +49,24 @@ export function rehypeMermaid() {
 					],
 				);
 
-				// 创建客户端渲染脚本
-				const renderScript = h(
-					"script",
-					{
-						type: "text/javascript",
-					},
-					mermaidRenderScript,
-				);
-
 				// 替换原始节点
 				node.tagName = "div";
 				node.properties = { class: "mermaid-diagram-container" };
-				node.children = [mermaidContainer, renderScript];
+
+				// 只在第一个 Mermaid 块注入渲染脚本，后续的只保留容器
+				if (!scriptInjected) {
+					const renderScript = h(
+						"script",
+						{
+							type: "text/javascript",
+						},
+						mermaidRenderScript,
+					);
+					node.children = [mermaidContainer, renderScript];
+					scriptInjected = true;
+				} else {
+					node.children = [mermaidContainer];
+				}
 			}
 		});
 	};

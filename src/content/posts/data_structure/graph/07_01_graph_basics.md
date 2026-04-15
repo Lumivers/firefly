@@ -852,6 +852,6 @@ std::vector<std::pair<int,int>> bfs_pathfind(
 
 ---
 
-> 📖 返回总览：[第七章 图 —— 总览与导航](./index)
+> 📖 返回总览：[第七章 图 —— 总览与导航](../index)
 >
-> 📖 下一节：[7.2 最短路径：Dijkstra & A*](./07_02_shortest_path) —— 从 Dijkstra 的贪心策略到 A* 的启发式搜索，掌握图中"找最优路径"的核心算法。
+> 📖 下一节：[7.2 最短路径：Dijkstra & A*](../07_02_shortest_path) —— 从 Dijkstra 的贪心策略到 A* 的启发式搜索，掌握图中"找最优路径"的核心算法。
