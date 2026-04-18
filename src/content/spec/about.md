@@ -26,8 +26,7 @@
 如果你想和我交流技术问题，分享有趣的想法，或者只是想打个招呼，欢迎通过以下方式联系我：
 
 - 💻 **GitHub**: [Lumivers](https://github.com/Lumivers)
-- ✉️ **Email**: [xzq060312@163.com](mailto:xzq060312@163.com)
+- ✉️ **Email**: [Lumivers@outlook.com](mailto:Lumivers@outlook.com)
 - 🐧 **QQ：[2423109915](https://qm.qq.com/q/NnLMRTdQQI)**
 
 *感谢你的来访！希望在这里能找到对你有用的内容！*
-
