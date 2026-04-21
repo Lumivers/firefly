@@ -5,7 +5,7 @@ description: "通过阅读 AstrBot 源码发现：**Star 插件** 只能被动�
 image: "api"
 tags: [Lumi-hub, 开发笔记]
 category: 开发笔记
-draft: false
+draft: true
 pinned: false
 ---
 

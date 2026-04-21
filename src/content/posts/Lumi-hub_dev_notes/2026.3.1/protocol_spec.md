@@ -5,7 +5,7 @@ description: "本文档是 [`protocol.json`](./protocol.json) 的详细说明，
 image: "api"
 tags: [Lumi-hub, 开发笔记]
 category: 开发笔记
-draft: false
+draft: true
 pinned: false
 ---
 
