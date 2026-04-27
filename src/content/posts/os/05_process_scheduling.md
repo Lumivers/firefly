@@ -99,7 +99,7 @@ gantt
     axisFormat %s
     
     section P1
-    0-1    : 1s
+    0-1    : 0, 1s
     section P2
     1-5    : 4s
     section P4
@@ -129,7 +129,7 @@ gantt
     axisFormat %s
     
     section P1
-    0-4    : 4s
+    0-4    : 0, 4s
     section P2
     4-8    : 4s
     section P3
@@ -164,7 +164,7 @@ gantt
     axisFormat %s
     
     section Q1(8ms)
-    0-8    : 8s
+    0-8    : 0, 8s
     section Q2(16ms)
     8-16   : 8s
     section Q3(32ms)
