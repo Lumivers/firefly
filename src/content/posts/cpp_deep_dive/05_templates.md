@@ -92,17 +92,17 @@ graph LR
 
 ```mermaid
 graph TD
-    call["调用 func(42)"]
-    call --> c1["候选 1: func<T>(T)\nwhere T has .size()"]
-    call --> c2["候选 2: func<T>(T)\nwhere T is arithmetic"]
+    trigger["调用 func(42)"]
+    trigger --> cand1["候选 1: func-T-T<br/>要求 T 有 .size 方法"]
+    trigger --> cand2["候选 2: func-T-T<br/>要求 T 是数值类型"]
 
-    c1 --> sub1["替换 T=int\nint 有 .size()？"]
-    sub1 --> fail["❌ 替换失败\n(Substitution Failure)"]
-    fail --> sfinae["SFINAE: 不报错\n只是排除这个候选"]
+    cand1 --> check1{"尝试替换 T 为 int<br/>int 有 .size 吗?"}
+    check1 -- 否 --> fail["❌ 替换失败<br/>Substitution Failure"]
+    fail --> sfinae["SFINAE 机制: 不报错<br/>仅从候选名单删除"]
 
-    c2 --> sub2["替换 T=int\nint 是 arithmetic？"]
-    sub2 --> ok["✅ 替换成功"]
-    ok --> selected["选中候选 2 ✅"]
+    cand2 --> check2{"尝试替换 T 为 int<br/>int 是数值吗?"}
+    check2 -- 是 --> ok["✅ 替换成功"]
+    ok --> selected["最终选中候选 2"]
 
     style fail fill:#d00000,stroke:#e85d04,color:white
     style sfinae fill:#e85d04,stroke:#f48c06,color:white

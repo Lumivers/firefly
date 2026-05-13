@@ -129,24 +129,35 @@ block-beta
 ```mermaid
 block-beta
     columns 5
-    block:title:5
-        columns 1
-        t["Multi : Base1, Base2 — sizeof = 32"]
-    end
-    vp1["vptr1\n(8B)"] a["Base1::a\n(4B)"] pad1["pad\n(4B)"] vp2["vptr2\n(8B)"] b["Base2::b\n(4B)"]
+    
+    %% 第一行：标题
+    title["Multi : Base1, Base2 — sizeof = 32"]:5
 
-    block:extra:5
-        columns 5
-        pad2["pad\n(4B)"] c["Multi::c\n(4B)"] empty1[""] empty2[""] empty3[""]
-    end
+    %% 第二行：Base1 部分 (vptr1 占 2 格以模拟 8B，a 占 1 格 4B，pad 占 1 格 4B)
+    %% 注意：为了对齐美观，我们将 8B 的指针拆分或通过占位展示
+    vp1["vptr1 (Base1)\n8 Bytes"]:2
+    a["Base1::a\n4 Bytes"]:1
+    pad1["padding\n4 Bytes"]:2
 
+    %% 第三行：Base2 部分 + Multi 成员
+    vp2["vptr2 (Base2)\n8 Bytes"]:2
+    b["Base2::b\n4 Bytes"]:1
+    pad2["padding\n4 Bytes"]:2
+
+    %% 第四行：Multi 自己的成员
+    c["Multi::c\n4 Bytes"]:1
+    pad3["final padding\n4 Bytes"]:4
+
+    %% 样式定义
+    style title fill:#333,stroke:#666,color:#fff,font-weight:bold
     style vp1 fill:#7b2cbf,stroke:#9d4edd,color:white
     style vp2 fill:#d00000,stroke:#e85d04,color:white
     style a fill:#2d6a4f,stroke:#40916c,color:white
     style b fill:#e85d04,stroke:#f48c06,color:white
     style c fill:#1b4332,stroke:#2d6a4f,color:white
-    style pad1 fill:#555,stroke:#888,color:#aaa
-    style pad2 fill:#555,stroke:#888,color:#aaa
+    style pad1 fill:#444,stroke:#666,color:#888
+    style pad2 fill:#444,stroke:#666,color:#888
+    style pad3 fill:#444,stroke:#666,color:#888
 ```
 
 ```

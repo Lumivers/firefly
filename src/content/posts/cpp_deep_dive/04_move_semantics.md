@@ -72,19 +72,25 @@ C++ 中每个表达式都有一个**值类别**，决定了它能绑定到什么
 
 ```mermaid
 graph TD
-    expr["表达式 (expression)"]
-    expr --> glvalue["glvalue\n(有身份)"]
-    expr --> rvalue["rvalue\n(可移动)"]
-    glvalue --> lvalue["lvalue\n有名字、可取地址\n例: 变量、*ptr、arr[i]"]
-    glvalue --> xvalue["xvalue (将亡值)\n有身份但可移动\n例: std::move(x)、\n返回 T&& 的函数"]
-    rvalue --> xvalue
-    rvalue --> prvalue["prvalue (纯右值)\n无名字、不可取地址\n例: 42、3.14、\nstd::string(\"hi\")"]
+    expr["表达式 (Expression)"]
+    
+    %% 第一层分类
+    expr --> glvalue["glvalue (Generalized lvalue)<br/><b>有身份</b>：在内存中有地址"]
+    expr --> rvalue["rvalue (Right value)<br/><b>可移动</b>：资源可被转移"]
 
-    style lvalue fill:#2d6a4f,stroke:#40916c,color:white
-    style xvalue fill:#e85d04,stroke:#f48c06,color:white
-    style prvalue fill:#d00000,stroke:#e85d04,color:white
-    style glvalue fill:#7b2cbf,stroke:#9d4edd,color:white
-    style rvalue fill:#7b2cbf,stroke:#9d4edd,color:white
+    %% 第二层核心
+    glvalue --> lvalue["<b>lvalue (左值)</b><br/>有名字，不可移动<br/>例: 变量名, arr[i]"]
+    glvalue --> xvalue
+    rvalue --> xvalue["<b>xvalue (将亡值)</b><br/>有身份 且 可移动<br/>例: std::move(n)"]
+    rvalue --> prvalue["<b>prvalue (纯右值)</b><br/>无身份，可移动<br/>例: 字面量 42, 临时对象"]
+
+    %% 样式美化
+    style expr fill:#f8f9fa,stroke:#343a40
+    style lvalue fill:#2d6a4f,stroke:#1b4332,color:white
+    style prvalue fill:#9b2226,stroke:#660708,color:white
+    style xvalue fill:#e85d04,stroke:#bb4d00,color:white
+    style glvalue fill:#5a189a,stroke:#3c096c,color:white
+    style rvalue fill:#5a189a,stroke:#3c096c,color:white
 ```
 
 **面试简化记忆**：
