@@ -277,6 +277,7 @@ if (hasFlag(layer, RenderLayer::UI)) {
 > 💡 **面试中的表述**："`enum class` 相比传统 `enum` 有三个改进：作用域隔离（必须 `ClassName::` 前缀）、类型安全（禁止隐式转 int）、可显式指定底层类型（支持前向声明）。传统 `enum` 的枚举值会污染外层作用域，且可以隐式转为 int 导致非语义化比较被编译通过。"
 
 ### 8.2.6 范围 for
+```cpp
 std::vector<int> v = {1, 2, 3, 4, 5};
 for (auto& x : v) { x *= 2; }     // 引用修改
 for (const auto& x : v) { ... }    // const 引用读取（推荐）
