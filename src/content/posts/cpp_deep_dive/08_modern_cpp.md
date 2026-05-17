@@ -143,33 +143,140 @@ const auto config = []() {
 
 ---
 
-### 8.2.4 其他 C++11 要点
+### 8.2.4 nullptr
 
 ```cpp
-// === nullptr ===
 // NULL 是 0，在重载决议中可能被当作 int
 void f(int* p);
 void f(int n);
 f(NULL);     // ❌ 歧义！NULL = 0，可匹配两者
-f(nullptr);  // ✅ 明确是空指针
+f(nullptr);  // ✅ 明确是空指针，保证匹配指针重载
 
-// === enum class ===
-// 传统 enum 的问题：全局作用域 + 隐式转换 int
-enum Color { Red, Green, Blue };  // Red 是全局的
-enum Fruit { Apple, Orange };
-// int x = Red + Apple;  // ✅ 编译通过（但语义荒谬）
+// nullptr 的类型是 std::nullptr_t，只能转为任意指针类型，不能转 int
+```
 
-// enum class：类型安全
-enum class Direction { Up, Down, Left, Right };
-// int x = Direction::Up;           // ❌ 不能隐式转 int
-int x = static_cast<int>(Direction::Up);  // ✅ 必须显式
+### 8.2.5 枚举深入：从 enum 到 enum class
 
-// C++17：可以指定底层类型
-enum class InputKey : uint8_t {
+枚举是 C++ 中最容易被低估的主题。表面上简单，但传统 `enum` 有四个致命问题，而 `enum class` 解决了它们。
+
+**传统 enum 的四大问题**：
+
+```cpp
+// 问题一：作用域污染 —— 枚举值泄漏到外层作用域
+enum Color { Red, Green, Blue };
+// Red、Green、Blue 现在都是全局可见的
+enum TrafficLight { Red, Yellow, Green };  // ❌ 编译错误！Red 和 Green 重复定义
+
+// 旧式解决方法：用命名空间或前缀手动隔离
+enum Color { COLOR_Red, COLOR_Green, COLOR_Blue };
+enum Fruit { FRUIT_Apple, FRUIT_Orange };
+
+// 问题二：隐式转换为 int —— 语义荒谬但编译通过
+enum Color { Red = 0, Green = 1, Blue = 2 };
+enum Fruit { Apple = 0, Orange = 1 };
+int x = Red + Apple;         // ✅ 编译通过，x = 0
+bool b = (Red == Apple);     // ✅ 编译通过，b = true（两者都是 0）
+if (Red) { /* ... */ }       // ✅ 编译通过，但毫无语义
+
+// 问题三：底层类型不确定
+// 编译器可能选 int、unsigned int、char……取决于枚举值的范围
+enum Flags { A = 1, B = 2, C = 4 };       // 可能用 int 或 unsigned
+enum BigFlags { X = 1ULL << 40 };          // 必须用 64 位类型
+// 这导致 ABI 兼容性问题：不同编译器可能选不同底层类型
+// 也对前向声明造成了障碍
+
+// 问题四：不能前向声明（C++11 之前）
+// enum Color;  // ❌ C++03 不允许，因为编译器不知道底层类型
+```
+
+**enum class 的类型安全机制**：
+
+```cpp
+// enum class：作用域 + 类型安全 + 可指定底层类型
+enum class Color { Red, Green, Blue };
+enum class Fruit { Apple, Orange };
+
+// ① 作用域隔离
+Color c = Color::Red;        // ✅ 必须加 Color:: 前缀
+Fruit f = Fruit::Apple;      // ✅ 各自的枚举值互不干扰
+
+// ② 禁止隐式转换
+// int x = Color::Red;       // ❌ 编译错误
+int x = static_cast<int>(Color::Red);  // ✅ 显式转换，意图明确
+// bool b = (Color::Red == Fruit::Apple);  // ❌ 编译错误！不同类型不能比较
+// if (Color::Red) { }       // ❌ 编译错误
+
+// ③ 可指定底层类型，支持前向声明
+enum class InputKey : uint8_t {    // 只用 1 字节
     W = 0, A, S, D, Space, Shift
 };
 
-// === 范围 for ===
+enum class EntityType : uint32_t;  // ✅ 前向声明（编译器知道占 4 字节）
+// ... 在别的文件中
+enum class EntityType : uint32_t {
+    Player, Enemy, NPC, Projectile
+};
+```
+
+**枚举的底层类型规则**：
+
+```cpp
+// C++11 起，enum class 默认底层类型是 int
+// 可以显式指定为任意整数类型
+enum class SmallEnum : uint8_t  { A, B, C };          // 1 字节
+enum class MediumEnum : uint16_t { X = 1000 };         // 2 字节
+enum class LargeEnum : uint64_t  { Y = 1ULL << 50 };   // 8 字节
+
+// 传统 enum 在 C++11 起也可以指定底层类型
+enum Flags : uint32_t {
+    None    = 0,
+    Visible = 1 << 0,
+    Enabled = 1 << 1,
+    Focused = 1 << 2
+};
+
+// 获取枚举的底层类型（C++11）
+using T = std::underlying_type_t<Flags>;  // T = uint32_t
+```
+
+**枚举作为位掩码（Flags）**：
+
+```cpp
+// 游戏中最常见的用法：标志位
+enum class RenderLayer : uint8_t {
+    None       = 0,
+    Default    = 1 << 0,
+    Transparent = 1 << 1,
+    UI         = 1 << 2,
+    Skybox     = 1 << 3,
+    Shadow     = 1 << 4
+};
+
+// 为了让 enum class 支持位运算，需要手动重载
+inline constexpr RenderLayer operator|(RenderLayer a, RenderLayer b) {
+    return static_cast<RenderLayer>(
+        static_cast<uint8_t>(a) | static_cast<uint8_t>(b)
+    );
+}
+inline constexpr RenderLayer operator&(RenderLayer a, RenderLayer b) {
+    return static_cast<RenderLayer>(
+        static_cast<uint8_t>(a) & static_cast<uint8_t>(b)
+    );
+}
+inline constexpr bool hasFlag(RenderLayer value, RenderLayer flag) {
+    return (static_cast<uint8_t>(value) & static_cast<uint8_t>(flag)) != 0;
+}
+
+// 使用
+RenderLayer layer = RenderLayer::Default | RenderLayer::Transparent;
+if (hasFlag(layer, RenderLayer::UI)) {
+    // ...
+}
+```
+
+> 💡 **面试中的表述**："`enum class` 相比传统 `enum` 有三个改进：作用域隔离（必须 `ClassName::` 前缀）、类型安全（禁止隐式转 int）、可显式指定底层类型（支持前向声明）。传统 `enum` 的枚举值会污染外层作用域，且可以隐式转为 int 导致非语义化比较被编译通过。"
+
+### 8.2.6 范围 for
 std::vector<int> v = {1, 2, 3, 4, 5};
 for (auto& x : v) { x *= 2; }     // 引用修改
 for (const auto& x : v) { ... }    // const 引用读取（推荐）
