@@ -51,22 +51,32 @@ async Task LoadGameData()
 
 ```mermaid
 flowchart LR
-    subgraph "回调风格"
+    %% 强制左侧子图水平展开
+    subgraph CALLBACK ["【 回调风格 (Callback Hell) 】"]
+        direction LR
         CB1["DownloadConfig"] -->|"回调"| CB2["ParseConfig"]
         CB2 -->|"回调"| CB3["DownloadAssets"]
         CB3 -->|"回调"| CB4["Instantiate"]
         CB4 -->|"回调"| CB5["StartGame"]
     end
-    
-    subgraph "async/await 风格"
-        A1["var config = await DownloadConfig()"] --> A2["ParseConfig()"]
-        A2 --> A3["var assets = await DownloadAssets()"]
-        A3 --> A4["Instantiate()"]
-        A4 --> A5["StartGame()"]
+
+    %% 强制右侧子图水平展开
+    subgraph ASYNC ["【 async/await 风格 (线性逻辑) 】"]
+        direction LR
+        A1["await<br/>DownloadConfig"] --> A2["ParseConfig"]
+        A2 --> A3["await<br/>DownloadAssets"]
+        A3 --> A4["Instantiate"]
+        A4 --> A5["StartGame"]
     end
-    
+
+    %% 隐式依赖：强迫两个子图左右并排
+    CALLBACK ~~~ ASYNC
+
+    %% 样式微调
     style CB1 fill:#d00000,stroke:#e85d04,color:white
     style A1 fill:#2d6a4f,stroke:#40916c,color:white
+    style CALLBACK fill:#1f2937,stroke:#4b5563,color:white
+    style ASYNC fill:#111827,stroke:#374151,color:white
 ```
 
 ---
@@ -153,30 +163,44 @@ struct <FetchScoreAsync>d__0 : IAsyncStateMachine
 ```
 
 ```mermaid
-flowchart TD
-    Start["首次调用 MoveNext()<br/>__state = -1"]
-    Await1["启动 LoadPlayerAsync()<br/>检查 IsCompleted"]
-    Comp1{"已完成？"}
-    Suspend1["❌ 未完成<br/>__state = 0<br/>注册回调 → return"]
-    Resume1["✅ 已完成（或回调触发）<br/>MoveNext() 再次被调用<br/>__state = 0"]
-    GetResult1["__player = GetResult()"]
-    Await2["启动 LoadStatsAsync()<br/>检查 IsCompleted"]
-    Comp2{"已完成？"}
-    Suspend2["❌ 未完成<br/>__state = 1<br/>注册回调 → return"]
-    Resume2["✅ 已完成<br/>MoveNext() 再次被调用<br/>__state = 1"]
-    Complete["SetResult(stats.Score)<br/>Task 完成"]
-    
-    Start --> Await1 --> Comp1
-    Comp1 -->|"否"| Suspend1 -.->|"I/O 完成回调"| Resume1
-    Comp1 -->|"是"| Resume1
-    Resume1 --> GetResult1 --> Await2 --> Comp2
-    Comp2 -->|"否"| Suspend2 -.->|"I/O 完成回调"| Resume2
-    Comp2 -->|"是"| Resume2
-    Resume2 --> Complete
-    
-    style Suspend1 fill:#d00000,color:white
-    style Suspend2 fill:#d00000,color:white
-    style Complete fill:#2d6a4f,color:white
+flowchart LR
+    %% ================= 第一层：LoadPlayer 阶段 =================
+    subgraph PHASE1 ["【 阶段一：加载玩家数据 (State: -1 -> 0) 】"]
+        direction LR
+        Start["1. 首次 MoveNext<br/>(__state = -1)"] --> Await1["2. 评估 Task1<br/>(LoadPlayerAsync)"]
+        Await1 --> Comp1{"Task1<br/>完成?"}
+        
+        %% 挂起与恢复分支
+        Comp1 -->|"否"| Suspend1["❌ 挂起<br/>__state=0<br/>注册回调->Return"]
+        Comp1 -->|"是"| Resume1
+        Suspend1 -.->|"I/O完成"| Resume1["3. 唤醒 MoveNext<br/>(__state = 0)"]
+        
+        Resume1 --> GetResult1["4. 拿到结果<br/>__player = GetResult()"]
+    end
+
+    %% ================= 第二层：LoadStats 阶段 =================
+    subgraph PHASE2 ["【 阶段二：加载统计数据 (State: 0 -> 1) 】"]
+        direction LR
+        Await2["5. 评估 Task2<br/>(LoadStatsAsync)"] --> Comp2{"Task2<br/>完成?"}
+        
+        %% 挂起与恢复分支
+        Comp2 -->|"否"| Suspend2["❌ 挂起<br/>__state=1<br/>注册回调->Return"]
+        Comp2 -->|"是"| Resume2
+        Suspend2 -.->|"I/O完成"| Resume2["6. 唤醒 MoveNext<br/>(__state = 1)"]
+        
+        Resume2 --> Complete["7. 最终完成<br/>SetResult()"]
+    end
+
+    %% 核心控制：连接第一层末尾到第二层开头，并强制两层上下规整对齐
+    GetResult1 ==> Await2
+    PHASE1 ~~~ PHASE2
+
+    %% 样式微调
+    style Suspend1 fill:#d00000,stroke:#e85d04,color:white
+    style Suspend2 fill:#d00000,stroke:#e85d04,color:white
+    style Complete fill:#2d6a4f,stroke:#40916c,color:white
+    style PHASE1 fill:#1f2937,stroke:#4b5563,color:white
+    style PHASE2 fill:#111827,stroke:#374151,color:white
 ```
 
 > 💡 注意：状态机是一个 **struct**，不是 class。编译器尽量让它存活在栈上，只有真正需要挂起（await 未完成）时才会装箱到堆上。如果 await 的对象已经完成（`IsCompleted == true`），整个异步调用同步执行，零堆分配。

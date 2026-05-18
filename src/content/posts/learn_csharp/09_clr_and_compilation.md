@@ -22,20 +22,33 @@ draft: false
 C++ 程序员习惯的编译模型是"源码 → 目标文件 → 可执行文件"，运行时 CPU 直接执行机器码。C# 的编译模型多了"中间语言"和"运行时编译"两个阶段：
 
 ```mermaid
-flowchart LR
-    subgraph "C++ 编译模型"
-        CPP_SRC["main.cpp<br/>utils.cpp"] --> CPP_OBJ["main.o<br/>utils.o<br/>包含 x86-64 机器码"]
-        CPP_OBJ --> CPP_EXE["可执行文件<br/>CPU 直接执行"]
+flowchart TD
+    %% ================= 上层：C++ 编译模型 =================
+    subgraph CPP ["【 C++ 编译模型 (提前编译 AOT) 】"]
+        direction LR
+        CPP_SRC["1. 源码文件<br/>(.cpp / .h)"] --> CPP_COMP["编译器 / 汇编器<br/>(MSVC / Clang)"]
+        CPP_COMP --> CPP_OBJ["2. 目标文件<br/>(.obj / .o 机器码)"]
+        CPP_OBJ --> CPP_LINK["链接器<br/>(Linker)"]
+        CPP_LINK --> CPP_EXE["3. 本地可执行文件<br/>(.exe / CPU直接执行)"]
     end
-    
-    subgraph "C# 编译模型"
-        CS_SRC["Program.cs<br/>Utils.cs"] --> CS_IL["Program.dll<br/>包含 CIL 中间语言"]
-        CS_IL --> CS_JIT["CLR 运行时<br/>JIT 编译器逐方法翻译为机器码"]
-        CS_JIT --> CS_EXE["CPU 执行<br/>机器码缓存在内存中"]
+
+    %% ================= 下层：C# 编译模型 =================
+    subgraph CS ["【 C# 编译模型 (JIT 运行期编译) 】"]
+        direction LR
+        CS_SRC["1. 源码文件<br/>(.cs)"] --> CS_COMP["Roslyn 编译器<br/>(csc)"]
+        CS_COMP --> CS_IL["2. 程序集<br/>(.dll / CIL中间语言)"]
+        CS_IL --> CS_JIT["3. CLR 运行时<br/>(JIT 动态编译为机器码)"]
+        CS_JIT --> CS_EXE["4. 内存缓存<br/>(CPU 执行机器码)"]
     end
-    
+
+    %% 强制让 C++ 盒子和 C# 盒子上下堆叠对齐，防止横向无限拉伸
+    CPP ~~~ CS
+
+    %% 样式微调
     style CPP_EXE fill:#d00000,stroke:#e85d04,color:white
     style CS_JIT fill:#2d6a4f,stroke:#40916c,color:white
+    style CPP fill:#1f2937,stroke:#4b5563,color:white
+    style CS fill:#111827,stroke:#374151,color:white
 ```
 
 **关键差异**：
