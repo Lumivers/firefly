@@ -34,7 +34,7 @@ flowchart TD
 
     %% ================= 下层：C# 编译模型 =================
     subgraph CS ["【 C# 编译模型 (JIT 运行期编译) 】"]
-        direction LR
+        direction LR 
         CS_SRC["1. 源码文件<br/>(.cs)"] --> CS_COMP["Roslyn 编译器<br/>(csc)"]
         CS_COMP --> CS_IL["2. 程序集<br/>(.dll / CIL中间语言)"]
         CS_IL --> CS_JIT["3. CLR 运行时<br/>(JIT 动态编译为机器码)"]
