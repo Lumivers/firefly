@@ -19,3 +19,4 @@ draft: true
 
 > [Ch1 最重要的一课：git的使用](../1,how_to_use_git.md/)
 > [Ch2 ](../)
+> [Ch3 ](../)
