@@ -6,7 +6,7 @@ description: "**图形学基础 · 光照模型。** 从 Phong 的三个分量�
 tags: [图形学, 光照, Phong, Blinn-Phong, PBR, 法线贴图, Shader]
 category: 图形学笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

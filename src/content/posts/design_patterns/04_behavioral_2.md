@@ -6,7 +6,7 @@ description: "**设计模式 · 行为型模式进阶篇。** 逐一拆解策略
 tags: [设计模式, 行为型, 策略模式, 模板方法, 迭代器, 职责链, C++, 游戏开发]
 category: 设计模式笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

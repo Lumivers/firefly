@@ -6,7 +6,7 @@ description: "**从 C++ 到 C# · 委托与运算符。** C# 运算符重载与 
 tags: [C#, 运算符重载, 委托, 闭包, Lambda, 多播]
 category: C#学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

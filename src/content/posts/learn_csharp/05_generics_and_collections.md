@@ -6,7 +6,7 @@ description: "**从 C++ 到 C# · 泛型。** reified generics 的 JIT 共享机
 tags: [C#, 泛型, 集合, 协变逆变, List, Dictionary, HashSet]
 category: C#学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

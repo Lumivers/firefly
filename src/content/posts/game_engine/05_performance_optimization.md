@@ -6,7 +6,7 @@ description: "**游戏引擎基础 · 性能优化终章。** 建立性能优化
 tags: [游戏引擎, Unity, 性能优化, Profiler, DrawCall, GC, 合批]
 category: 游戏引擎笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

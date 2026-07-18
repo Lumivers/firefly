@@ -6,7 +6,7 @@ description: "状态管理是 Flutter 应用的灵魂。本章深入剖析 Provi
 tags: [Flutter, 状态管理, Provider, ChangeNotifier]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

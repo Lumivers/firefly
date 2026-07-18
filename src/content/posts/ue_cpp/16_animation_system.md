@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第十六章。** 从 AnimBlueprint 与 AnimIns
 tags: [C++, UE5, UnrealEngine, Animation, AnimBlueprint, IK, Montage, RootMotion, MotionWarping, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

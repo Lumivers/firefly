@@ -6,7 +6,7 @@ description: "解开 Dart 异步编程的秘密。深入理解 Future、async/aw
 tags: [Dart, 异步编程, Future, EventLoop]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "**面试突击 · 内存管理。** 从虚拟内存到四级页表
 tags: [操作系统, 面试, 虚拟内存, 页表, TLB, 内存管理, 游戏开发]
 category: 操作系统笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

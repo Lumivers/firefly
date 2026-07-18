@@ -6,7 +6,7 @@ description: "**面试突击 · 最短路径。** 从 Dijkstra 的贪心策略�
 tags: [数据结构, C++, 面试, Graph, Dijkstra, AStar, ShortestPath]
 category: 数据结构笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "**设计模式 · 游戏架构终章。** 从单点模式上升到
 tags: [设计模式, ECS, 组件模式, MVVM, 服务定位器, C++, Unity, 游戏架构]
 category: 设计模式笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

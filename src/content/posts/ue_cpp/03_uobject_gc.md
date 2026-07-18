@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第三章。** 从标记-清扫 GC 的全流程
 tags: [C++, UE5, UnrealEngine, GC, UObject, 内存管理, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

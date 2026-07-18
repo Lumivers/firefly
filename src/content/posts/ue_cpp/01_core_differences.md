@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第一章。** 从 1998 年的 UE1 到 C++20 �
 tags: [C++, UE5, UnrealEngine, 游戏开发, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

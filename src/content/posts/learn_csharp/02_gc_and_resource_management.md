@@ -6,7 +6,7 @@ description: "**从 C++ 到 C# · 内存管理。** 代际 GC 的底层机制、
 tags: [C#, GC, IDisposable, 内存管理, 异常处理, 对象池]
 category: C#学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

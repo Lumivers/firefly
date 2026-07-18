@@ -6,7 +6,7 @@ description: "**Unity 引擎 · 性能。** GC 避免的六大策略与分配热
 tags: [Unity, 性能优化, GC, Job System, Burst, IL2CPP, 面试]
 category: C#学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "深入 Dart 的错误处理机制。从基础的 try-catch 到自�
 tags: [Dart, 错误处理, 异常归因, 健壮性]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

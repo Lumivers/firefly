@@ -6,7 +6,7 @@ description: "**面试突击 · 链表。** 从单链表到侵入式链表，从
 tags: [数据结构, C++, 面试, LinkedList, IntrusiveList]
 category: 数据结构笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "**面试突击 · 字符串算法。** 从字符串哈希到 KMP �
 tags: [算法, 字符串, KMP, Rabin-Karp, AC自动机, Manacher, 面试, C++]
 category: 算法笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

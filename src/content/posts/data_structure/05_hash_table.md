@@ -6,7 +6,7 @@ description: "**面试突击 · 哈希表。** 从哈希函数设计到冲突解
 tags: [数据结构, C++, 面试, HashMap, HashTable]
 category: 数据结构笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---
@@ -30,7 +30,7 @@ draft: false
 **哈希表的解决方案**：用一个**哈希函数**把任意 Key 映射（压缩）到有限的数组下标范围内，实现"任意 Key → O(1) 查找"。
 
 ```
-Key("lonelystar") → hash("lonelystar") → 847293 → 847293 % 1024 → index 177
+Key("lumivers") → hash("lumivers") → 847293 → 847293 % 1024 → index 177
                      ↑ 哈希函数                      ↑ 取模映射到桶
 ```
 

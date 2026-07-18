@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第四章。** 系统对比 UE 容器库（TArr
 tags: [C++, UE5, UnrealEngine, TArray, TMap, FString, FName, 容器, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

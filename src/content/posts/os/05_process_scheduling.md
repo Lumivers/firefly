@@ -6,7 +6,7 @@ description: "**面试突击 · 进程调度。** 从 FCFS/SJF/RR/优先级/MLFQ
 tags: [操作系统, 面试, 进程调度, CFS, 优先级反转, 中断, 系统调用, 游戏引擎, 实时调度]
 category: 操作系统笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

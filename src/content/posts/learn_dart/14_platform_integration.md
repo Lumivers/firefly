@@ -6,7 +6,7 @@ description: "跨越 Dart 与 OS 的边界。深入实战 window_manager 与 tra
 tags: [Flutter, 桌面开发, 进程管理, 平台集成]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

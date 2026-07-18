@@ -6,7 +6,7 @@ description: "掌握响应式编程的核心。从 StreamController 到 StreamTr
 tags: [Dart, Stream, 响应式编程, 事件流]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

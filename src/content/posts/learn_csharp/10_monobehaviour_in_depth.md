@@ -6,7 +6,7 @@ description: "**Unity 引擎 · 脚本核心。** MonoBehaviour 生命周期全�
 tags: [Unity, MonoBehaviour, 生命周期, Coroutine, 序列化, 面试]
 category: C#学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

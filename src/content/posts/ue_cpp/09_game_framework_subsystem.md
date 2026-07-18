@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第九章。** 从 GameInstance/GameMode/GameSt
 tags: [C++, UE5, UnrealEngine, GameFramework, Subsystem, GameMode, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

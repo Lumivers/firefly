@@ -6,7 +6,7 @@ description: "**面试突击 · 内存模型。** 从进程地址空间到栈帧
 tags: [C++, 面试, 内存模型, 对象布局, 内存管理]
 category: C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

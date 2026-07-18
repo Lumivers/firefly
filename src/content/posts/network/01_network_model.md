@@ -6,7 +6,7 @@ description: "**面试突击 · 网络分层。** 从 TCP/IP 四层到 OSI 七�
 tags: [计算机网络, 面试, TCP/IP, OSI, IP]
 category: 计算机网络笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

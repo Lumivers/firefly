@@ -6,7 +6,7 @@ description: "**面试突击 · 同步互斥。** 从竞态条件到临界区，
 tags: [操作系统, 面试, 同步, 互斥, 死锁, 锁, 游戏开发]
 category: 操作系统笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

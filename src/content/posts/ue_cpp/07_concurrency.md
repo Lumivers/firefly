@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第七章。** 从 GameThread 铁律的底层�
 tags: [C++, UE5, UnrealEngine, 多线程, GameThread, AsyncTask, ParallelFor, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

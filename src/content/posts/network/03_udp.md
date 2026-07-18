@@ -6,7 +6,7 @@ description: "**面试突击 · UDP 与可靠 UDP。** 从 UDP 的极简设计�
 tags: [计算机网络, 面试, UDP, KCP, QUIC, 游戏网络]
 category: 计算机网络笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

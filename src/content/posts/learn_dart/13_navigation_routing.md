@@ -6,7 +6,7 @@ description: "掌握 Flutter 的导航艺术。从状态驱动的条件渲染到
 tags: [Flutter, 路由导航, 主题系统, Material3]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

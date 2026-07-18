@@ -6,7 +6,7 @@ description: "**面试突击 · 图基础。** 从图的分类与术语到邻接
 tags: [数据结构, C++, 面试, Graph, BFS, DFS]
 category: 数据结构笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

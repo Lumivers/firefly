@@ -6,7 +6,7 @@ description: "**图形学进阶 · PBR 深入。** 从 Cook-Torrance BRDF 的三
 tags: [图形学, PBR, BRDF, IBL, Cook-Torrance, 材质, Shader]
 category: 图形学笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

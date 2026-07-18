@@ -6,7 +6,7 @@ description: "**游戏引擎基础 · 游戏 AI。** 从 FSM 的局限性出发�
 tags: [游戏引擎, Unity, AI, 行为树, FSM, A*, NavMesh, 寻路]
 category: 游戏引擎笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

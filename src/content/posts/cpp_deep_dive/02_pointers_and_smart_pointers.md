@@ -6,7 +6,7 @@ description: "**面试突击 · 指针与智能指针。** 从裸指针、引用
 tags: [C++, 面试, 指针, 智能指针, RAII]
 category: C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

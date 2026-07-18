@@ -6,7 +6,7 @@ description: "**面试突击 · CPU 缓存。** 从缓存层级金字塔到 Cach
 tags: [操作系统, 面试, CPU缓存, Cache Line, MESI, 伪共享, 分支预测, 性能优化, 游戏开发]
 category: 操作系统笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

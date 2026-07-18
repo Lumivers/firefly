@@ -6,7 +6,7 @@ description: "**面试突击 · 并查集。** 从 Quick Find 到 Quick Union，
 tags: [数据结构, C++, 面试, UnionFind, DisjointSet]
 category: 数据结构笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

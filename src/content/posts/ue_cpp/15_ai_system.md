@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第十五章。** 从 AI 控制器（AIControll
 tags: [C++, UE5, UnrealEngine, AI, BehaviorTree, Blackboard, EQS, AIPerception, NavMesh, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

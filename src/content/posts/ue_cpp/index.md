@@ -6,7 +6,7 @@ description: "**UE C++ 就业级笔记 · 全景导航。** 面向已有 Modern 
 tags: [C++, UE5, UnrealEngine, 游戏开发, UHT, GC, 面试, 就业]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

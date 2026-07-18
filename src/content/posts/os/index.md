@@ -6,7 +6,7 @@ description: "**面试突击系列 · 操作系统全景导航。** 9 章内容�
 tags: [操作系统, 面试, 游戏开发, 导航]
 category: 操作系统笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "**面试突击 · OOP 与多态。** 从虚函数表(vtable)的内
 tags: [C++, 面试, 虚函数, 多态, 继承, vtable]
 category: C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

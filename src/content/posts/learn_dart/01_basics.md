@@ -6,7 +6,7 @@ description: "**从 C++ 迈向 Dart 的第一步。** 快速建立 Dart 的直�
 tags: [Dart, Basics, Null Safety]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

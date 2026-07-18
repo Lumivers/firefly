@@ -6,7 +6,7 @@ description: "**面试突击 · 动态规划基础。** 从最优子结构到状
 tags: [算法, 动态规划, 背包问题, LIS, 面试, C++]
 category: 算法笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

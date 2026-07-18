@@ -6,7 +6,7 @@ description: "**面试突击 · 队列。** 从 FIFO 到双端队列，剖析 st
 tags: [数据结构, C++, 面试, Queue, Deque, PriorityQueue]
 category: 数据结构笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

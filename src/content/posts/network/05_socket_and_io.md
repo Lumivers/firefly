@@ -6,7 +6,7 @@ description: "**面试突击 · Socket 与 IO 模型。** 从 Socket API 到五�
 tags: [计算机网络, 面试, Socket, epoll, IO多路复用, Reactor]
 category: 计算机网络笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

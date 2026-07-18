@@ -6,7 +6,7 @@ description: "**游戏引擎基础 · 游戏循环与时间管理。** 从游戏
 tags: [游戏引擎, Unity, 游戏循环, deltaTime, FixedUpdate, 性能]
 category: 游戏引擎笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

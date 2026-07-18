@@ -6,7 +6,7 @@ description: "**从 C++ 到 C# · 面向对象。** 属性与字段的 IL 编译
 tags: [C#, OOP, 属性, 事件, 接口, partial]
 category: C#学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

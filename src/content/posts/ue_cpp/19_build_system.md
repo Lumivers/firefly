@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第十九章。** 从 UE 构建系统的四层�
 tags: [C++, UE5, UnrealEngine, UBT, BuildSystem, Modules, Build.cs, Target.cs, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

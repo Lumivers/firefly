@@ -6,7 +6,7 @@ description: "**面试突击 · 树的游戏应用。** 场景树的 Transform �
 tags: [数据结构, C++, 面试, SceneGraph, BehaviorTree, GameEngine]
 category: 数据结构笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

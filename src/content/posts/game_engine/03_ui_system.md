@@ -6,7 +6,7 @@ description: "**游戏引擎基础 · UI 系统设计。** 从 Canvas 的 Mesh �
 tags: [游戏引擎, Unity, UI, Canvas, DrawCall, 合批, ScrollRect, TextMeshPro]
 category: 游戏引擎笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

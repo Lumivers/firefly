@@ -6,7 +6,7 @@ description: "**面试突击系列 · 全景导航。** 10 章内容覆盖 C++ �
 tags: [C++, 面试, 游戏开发, 导航]
 category: C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "**面试突击 · 位运算。** 从基础位操作到 Gosper's Ha
 tags: [算法, 位运算, 布隆过滤器, 状态压缩, LayerMask, 面试, C++]
 category: 算法笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

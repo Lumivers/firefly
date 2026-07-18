@@ -6,7 +6,7 @@ description: "**面试突击 · 平衡树。** 从 AVL 的四种旋转到红黑�
 tags: [数据结构, C++, 面试, AVL, RedBlackTree, BTree]
 category: 数据结构笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

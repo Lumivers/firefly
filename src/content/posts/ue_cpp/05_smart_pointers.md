@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第五章。** 系统对比 UE 智能指针（T
 tags: [C++, UE5, UnrealEngine, TSharedPtr, 智能指针, GMalloc, 内存管理, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

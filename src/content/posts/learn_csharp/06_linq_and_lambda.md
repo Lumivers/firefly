@@ -6,7 +6,7 @@ description: "**从 C++ 到 C# · LINQ。** 迭代器状态机的编译器展开
 tags: [C#, LINQ, 迭代器, yield, 表达式树, Lambda]
 category: C#学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

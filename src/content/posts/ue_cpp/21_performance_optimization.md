@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第二十一章。** 从 UE 性能优化的四�
 tags: [C++, UE5, UnrealEngine, Performance, Optimization, Insights, Profiling, RenderDoc, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

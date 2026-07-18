@@ -6,7 +6,7 @@ description: "**设计模式 · 结构型模式。** 逐一拆解组合模式（
 tags: [设计模式, 结构型, 组合模式, 享元, 代理, 装饰器, 适配器, C++, 游戏开发]
 category: 设计模式笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

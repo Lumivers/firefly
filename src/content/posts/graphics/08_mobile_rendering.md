@@ -6,7 +6,7 @@ description: "**图形学实践 · 移动端渲染与调试。** 从桌面 GPU �
 tags: [图形学, 移动端渲染, Tile-Based GPU, RenderDoc, 性能优化, 调试]
 category: 图形学笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

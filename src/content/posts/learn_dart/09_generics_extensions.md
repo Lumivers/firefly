@@ -6,7 +6,7 @@ description: "探索 Dart 的高级进阶语法。通过泛型提升代码复用
 tags: [Dart, 泛型, 扩展方法, 代码复用]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

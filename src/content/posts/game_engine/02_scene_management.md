@@ -6,7 +6,7 @@ description: "**游戏引擎基础 · 场景管理与空间划分。** 从 Trans
 tags: [游戏引擎, Unity, 场景管理, 四叉树, 八叉树, LOD, 剔除]
 category: 游戏引擎笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

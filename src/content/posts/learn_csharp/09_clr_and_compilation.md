@@ -6,7 +6,7 @@ description: "**从 C++ 到 C# · 运行时。** CLR 如何加载 IL 代码并�
 tags: [C#, CLR, JIT, IL2CPP, AOT, Mono, CoreCLR, 面试]
 category: C#学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

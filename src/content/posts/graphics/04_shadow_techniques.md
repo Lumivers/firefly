@@ -6,7 +6,7 @@ description: "**图形学进阶 · 阴影技术。** 从 Shadow Map 的生成原
 tags: [图形学, 阴影, ShadowMap, CSM, PCF, 面试]
 category: 图形学笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

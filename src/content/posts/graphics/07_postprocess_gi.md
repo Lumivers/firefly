@@ -6,7 +6,7 @@ description: "**图形学实践 · 后处理与实时GI。** Bloom 的提取→�
 tags: [图形学, 后处理, Bloom, HDR, ToneMapping, SSAO, LightProbe, GI]
 category: 图形学笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

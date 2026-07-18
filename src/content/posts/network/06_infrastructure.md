@@ -6,7 +6,7 @@ description: "**面试突击 · 网络基础设施。** 从 DNS 递归查询到 
 tags: [计算机网络, 面试, DNS, NAT, CDN, NAT穿透]
 category: 计算机网络笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

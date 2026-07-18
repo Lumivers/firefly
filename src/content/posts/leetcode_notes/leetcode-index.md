@@ -5,7 +5,7 @@ pinned: true
 description: "我的力扣刷题记录索引。按照数据结构与算法专题分类，方便查阅与复盘。"
 tags: [力扣, 算法, 索引]
 category: 算法
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 lang: "zh"

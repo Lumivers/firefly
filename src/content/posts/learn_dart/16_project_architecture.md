@@ -6,7 +6,7 @@ description: "终章：鸟瞰 Lumi-Hub 全局架构。回顾从零到一的开�
 tags: [架构设计, 最佳实践, 知识地图, 深度总结]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

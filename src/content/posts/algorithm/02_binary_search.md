@@ -6,7 +6,7 @@ description: "**面试突击 · 二分查找。** 从统一模板到旋转数组
 tags: [算法, 二分查找, 二分答案, 面试, C++]
 category: 算法笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

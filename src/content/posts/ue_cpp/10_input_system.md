@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第十章。** 从 Enhanced Input 架构全景�
 tags: [C++, UE5, UnrealEngine, EnhancedInput, InputAction, InputMappingContext, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

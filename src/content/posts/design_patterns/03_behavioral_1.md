@@ -6,7 +6,7 @@ description: "**设计模式 · 行为型模式核心篇。** 游戏开发中出
 tags: [设计模式, 行为型, 观察者, 命令模式, 状态机, FSM, 事件系统, C++, 游戏开发]
 category: 设计模式笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

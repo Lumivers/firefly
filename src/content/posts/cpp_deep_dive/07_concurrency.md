@@ -6,7 +6,7 @@ description: "**面试突击 · 并发多线程。** 从 std::thread 基础到�
 tags: [C++, 面试, 多线程, 并发, 原子操作, 无锁编程]
 category: C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "**面试突击 · 调试与性能分析。** 从 ps/top/htop/proc 
 tags: [操作系统, 面试, 调试, 性能分析, gdb, perf, strace, 火焰图, valgrind, AddressSanitizer, 游戏引擎]
 category: 操作系统笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "**设计模式 · 创建型模式。** 从游戏开发中'谁创�
 tags: [设计模式, 创建型, 单例, 工厂, 对象池, C++, 游戏开发]
 category: 设计模式笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "**图形学基础 · 渲染管线与 MVP 变换。** 从 DrawCall 
 tags: [图形学, 渲染管线, MVP, 顶点着色器, 片元着色器, 面试]
 category: 图形学笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

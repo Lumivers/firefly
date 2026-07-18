@@ -6,7 +6,7 @@ description: "**面试突击 · 字典树。** 从标准 Trie 到压缩 Trie (Ra
 tags: [数据结构, C++, 面试, Trie, PrefixTree]
 category: 数据结构笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

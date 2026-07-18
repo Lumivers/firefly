@@ -6,7 +6,7 @@ description: "**面试突击 · 运算符重载。** 从重载规则全景到成
 tags: [C++, 面试, 运算符重载, 三路比较, ADL, 类型转换]
 category: C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

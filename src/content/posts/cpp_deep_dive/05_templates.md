@@ -6,7 +6,7 @@ description: "**面试突击 · 模板与泛型。** 从函数模板到类模板
 tags: [C++, 面试, 模板, 泛型编程, SFINAE, Concepts]
 category: C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第二十三章 · 全系列终章。** 从 UE 
 tags: [C++, UE5, UnrealEngine, Testing, Automation, FunctionalTest, Gauntlet, CI, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

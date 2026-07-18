@@ -6,7 +6,7 @@ description: "**C# 特性 · 设计模式。** C# 的语言特性如何改变经
 tags: [C#, 设计模式, Unity, 游戏架构, event, 单例, 对象池, 面试]
 category: C#学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

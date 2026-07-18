@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第二十章。** 从 Epic 命名前缀体系�
 tags: [C++, UE5, UnrealEngine, CodingStandard, NamingConvention, ErrorHandling, Casting, Interface, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

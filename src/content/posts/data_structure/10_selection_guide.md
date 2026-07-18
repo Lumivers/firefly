@@ -6,7 +6,7 @@ description: "**面试突击 · 选型指南。** 9 大数据结构全局横评�
 tags: [数据结构, C++, 面试, 选型, STL, 总结]
 category: 数据结构笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

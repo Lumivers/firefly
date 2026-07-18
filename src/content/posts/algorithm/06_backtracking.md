@@ -6,7 +6,7 @@ description: "**面试突击 · 回溯与搜索。** 从排列/组合/子集的�
 tags: [算法, 回溯, DFS, A星, 启发式搜索, 剪枝, 面试, C++]
 category: 算法笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第十七章。** 从 Chaos 物理引擎的核�
 tags: [C++, UE5, UnrealEngine, Chaos, Collision, Trace, PhysicsConstraint, PhysicalMaterial, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "**面试突击 · 栈。** 从函数调用栈到单调栈，剖析
 tags: [数据结构, C++, 面试, Stack, MonotonicStack]
 category: 数据结构笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

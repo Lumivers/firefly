@@ -6,7 +6,7 @@ description: "**面试突击 · 异常处理。** 从栈展开到底层机制，
 tags: [C++, 面试, 异常处理, 异常安全, noexcept, RAII]
 category: C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "**校招面试系列 · C# 全景导航。** 12 章内容覆盖 C#
 tags: [C#, Unity, 面试, 游戏开发, 导航]
 category: C#学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

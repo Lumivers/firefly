@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第十三章。** 从 DataAsset 体系（UPrima
 tags: [C++, UE5, UnrealEngine, DataAsset, DataTable, AssetManager, SoftReference, StreamableManager, LevelStreaming, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第十二章。** 从 FArchive 序列化体系�
 tags: [C++, UE5, UnrealEngine, 序列化, 网络复制, FArchive, RPC, SaveGame, Replication, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

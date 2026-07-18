@@ -6,7 +6,7 @@ description: "**面试突击 · TCP 协议。** 从三次握手到四次挥手�
 tags: [计算机网络, 面试, TCP, 三次握手, 拥塞控制]
 category: 计算机网络笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

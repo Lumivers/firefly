@@ -6,7 +6,7 @@ description: "**图形学进阶 · 渲染架构。** 前向渲染与延迟渲染
 tags: [图形学, 前向渲染, 延迟渲染, G-Buffer, Forward+, 渲染架构]
 category: 图形学笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

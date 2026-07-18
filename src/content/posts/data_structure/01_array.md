@@ -6,7 +6,7 @@ description: "**面试突击 · 数组。** 从连续内存到缓存行，从 st
 tags: [数据结构, C++, 面试, Array, Vector]
 category: 数据结构笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

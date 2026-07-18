@@ -6,7 +6,7 @@ description: "**面试突击 · 数学算法。** 快速幂与矩阵快速幂、
 tags: [算法, 数学, 快速幂, GCD, 质数, 随机算法, 面试, C++]
 category: 算法笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

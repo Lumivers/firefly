@@ -6,7 +6,7 @@ description: "**面试突击系列 · 全景导航。** 7 章内容覆盖网络�
 tags: [计算机网络, 面试, 游戏开发, 导航]
 category: 计算机网络笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

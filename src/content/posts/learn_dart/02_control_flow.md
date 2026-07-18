@@ -6,7 +6,7 @@ description: "**像操作 STL 一样优雅。** 探索 Dart 强大的集合操�
 tags: [Dart, Control Flow, Collections]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

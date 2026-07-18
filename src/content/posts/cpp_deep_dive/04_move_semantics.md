@@ -6,7 +6,7 @@ description: "**面试突击 · 移动语义。** 从值类别体系（lvalue/pr
 tags: [C++, 面试, 移动语义, 右值引用, 完美转发, RVO]
 category: C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

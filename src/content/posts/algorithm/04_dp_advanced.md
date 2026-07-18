@@ -6,7 +6,7 @@ description: "**面试突击 · 动态规划进阶。** 区间DP（戳气球/石
 tags: [算法, 动态规划, 区间DP, 状态压缩, 树形DP, 面试, C++]
 category: 算法笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

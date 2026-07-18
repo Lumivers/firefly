@@ -6,7 +6,7 @@ description: "**面试突击 · 游戏网络同步。** 从帧同步 vs 状态�
 tags: [计算机网络, 面试, 游戏网络, 帧同步, 状态同步, 延迟补偿]
 category: 计算机网络笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

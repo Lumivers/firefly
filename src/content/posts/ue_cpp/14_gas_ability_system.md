@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第十四章。** 从 GAS 六层架构全景（
 tags: [C++, UE5, UnrealEngine, GAS, GameplayAbilitySystem, ASC, GameplayEffect, GameplayAbility, AttributeSet, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

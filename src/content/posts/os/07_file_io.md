@@ -6,7 +6,7 @@ description: "**面试突击 · 文件系统与 I/O。** 从 inode/dentry/fd 三
 tags: [操作系统, 面试, 文件系统, I/O模型, epoll, io_uring, 零拷贝, inode, 游戏资源加载, 虚拟文件系统]
 category: 操作系统笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

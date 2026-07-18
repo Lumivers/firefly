@@ -6,7 +6,7 @@ description: "**面试突击系列 · 算法全景导航。** 9 章覆盖排序�
 tags: [算法, C++, 面试, 游戏开发, 导航]
 category: 算法笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

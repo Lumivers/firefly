@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第十一章。** 从 Slate 底层声明式语�
 tags: [C++, UE5, UnrealEngine, Slate, UMG, UUserWidget, ListView, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

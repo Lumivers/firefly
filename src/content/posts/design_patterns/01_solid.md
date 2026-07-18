@@ -6,7 +6,7 @@ description: "**设计模式 · 设计原则与 SOLID。** 从游戏开发中的
 tags: [设计模式, SOLID, C++, 游戏开发, 面试]
 category: 设计模式笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

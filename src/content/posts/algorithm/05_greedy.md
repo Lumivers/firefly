@@ -6,7 +6,7 @@ description: "**面试突击 · 贪心算法。** 从贪心 vs DP 的抉择判�
 tags: [算法, 贪心算法, 区间调度, 霍夫曼编码, 面试, C++]
 category: 算法笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

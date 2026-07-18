@@ -6,7 +6,7 @@ description: "**面试突击 · 编译链接。** 从预处理到链接的四步
 tags: [C++, 面试, 编译, 链接, 静态库, 动态库]
 category: C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

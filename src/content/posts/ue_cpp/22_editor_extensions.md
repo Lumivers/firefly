@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第二十二章。** 从 UE 编辑器扩展的�
 tags: [C++, UE5, UnrealEngine, Editor, DetailsPanel, AssetFactory, UToolMenus, EditorUtility, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

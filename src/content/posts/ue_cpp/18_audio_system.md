@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第十八章。** 从 UE5 音频系统的四层
 tags: [C++, UE5, UnrealEngine, Audio, MetaSounds, SoundCue, AudioComponent, Submix, Attenuation, HRTF, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

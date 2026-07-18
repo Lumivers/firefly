@@ -6,7 +6,7 @@ description: "**从 C++ 到 C# · 异步。** Task 状态机的完整底层展�
 tags: [C#, async, await, Task, SynchronizationContext, Unity]
 category: C#学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

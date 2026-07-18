@@ -6,7 +6,7 @@ description: "**面试突击 · 协程。** 从回调地狱到协程拯救，从
 tags: [操作系统, 面试, 协程, C++20, co_await, co_yield, 有栈协程, 无栈协程, UE5, 游戏引擎]
 category: 操作系统笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

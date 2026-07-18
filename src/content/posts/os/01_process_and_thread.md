@@ -6,7 +6,7 @@ description: "**面试突击 · 进程与线程。** 从进程地址空间到 PC
 tags: [操作系统, 面试, 进程, 线程, 上下文切换, 游戏开发]
 category: 操作系统笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

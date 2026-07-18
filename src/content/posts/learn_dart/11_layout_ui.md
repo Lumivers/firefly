@@ -6,7 +6,7 @@ description: "从 Row/Column 到 Stack/Container，深度解析 Flutter 的声�
 tags: [Flutter, 布局系统, Widget, 声明式UI]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

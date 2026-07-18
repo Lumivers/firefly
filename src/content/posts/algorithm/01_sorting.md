@@ -6,7 +6,7 @@ description: "**面试突击 · 排序算法。** 从 O(n²) 到 O(n log n) 再�
 tags: [算法, 排序, 快排, 归并排序, 堆排序, 面试, C++]
 category: 算法笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

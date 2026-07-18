@@ -6,7 +6,7 @@ description: "**面试突击 · 现代 C++。** 从 auto/decltype 推导规则�
 tags: [C++, 面试, 现代C++, Lambda, optional, variant, Concepts]
 category: C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

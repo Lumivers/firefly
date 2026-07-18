@@ -6,7 +6,7 @@ description: "**面试突击 · 数据结构全系列导航。** 10 章 17 篇�
 tags: [数据结构, C++, 面试, 总览, 导航]
 category: 数据结构笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

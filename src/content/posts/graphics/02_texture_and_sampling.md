@@ -6,7 +6,7 @@ description: "**图形学基础 · 纹理与采样。** 纹理不只是'贴图'�
 tags: [图形学, 纹理, MipMap, 各向异性过滤, 纹理压缩, ASTC, 采样]
 category: 图形学笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

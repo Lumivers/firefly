@@ -6,7 +6,7 @@ description: "**游戏客户端开发 · 引擎基础全景导航。** 5 章覆�
 tags: [游戏引擎, Unity, 性能优化, AI, UI, 场景管理, 导航]
 category: 游戏引擎笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "**超越传统类继承。** 相比 C++ 的多继承，Dart 的 Mi
 tags: [Dart, OOP, Mixin]
 category: 学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

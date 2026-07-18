@@ -6,7 +6,7 @@ description: "**UE C++ 系列 · 第六章。** 系统对比 UE 委托系统与 
 tags: [C++, UE5, UnrealEngine, Delegate, 委托, 事件, 面试]
 category: UE C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "**从 C++ 到 C# · 类型系统。** 值类型与引用类型的�
 tags: [C#, 内存, 类型系统, 值类型, 装箱, Span, 面试]
 category: C#学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

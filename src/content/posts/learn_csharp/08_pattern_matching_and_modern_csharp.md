@@ -6,7 +6,7 @@ description: "**从 C++ 到 C# · 模式匹配。** 从 C# 7.0 的 is 类型匹�
 tags: [C#, 模式匹配, record, Source Generator, C#12, 面试]
 category: C#学习笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

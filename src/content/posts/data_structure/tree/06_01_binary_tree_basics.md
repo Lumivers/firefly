@@ -6,7 +6,7 @@ description: "**面试突击 · 二叉树。** 从树的基本术语到四种遍
 tags: [数据结构, C++, 面试, BinaryTree, Traversal]
 category: 数据结构笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

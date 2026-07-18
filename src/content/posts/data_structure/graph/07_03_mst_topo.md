@@ -6,7 +6,7 @@ description: "**面试突击 · MST & 拓扑排序。** Kruskal 贪心选边 + �
 tags: [数据结构, C++, 面试, Graph, MST, TopologicalSort, Kruskal, Prim]
 category: 数据结构笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

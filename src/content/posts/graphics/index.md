@@ -6,7 +6,7 @@ description: "**游戏客户端开发 · 图形学全景导航。** 8 章覆盖�
 tags: [图形学, 渲染管线, Shader, 光照, PBR, 延迟渲染, 移动端, 面试]
 category: 图形学笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---

@@ -6,7 +6,7 @@ description: "**面试突击 · 进程间通信。** 从匿名/命名管道的�
 tags: [操作系统, 面试, IPC, 进程间通信, 共享内存, 管道, 信号, Socket, 游戏引擎架构]
 category: 操作系统笔记
 licenseName: "CC BY-NC-SA 4.0"
-author: "lonelystar"
+author: "lumivers"
 image: ""
 draft: false
 ---
