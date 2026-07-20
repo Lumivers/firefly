@@ -4,7 +4,7 @@ published: 2026-03-21
 pinned: false
 description: "解开 Dart 异步编程的秘密。深入理解 Future、async/await 与 Completer，学习如何优雅地处理非阻塞 I/O，让你的应用响应如飞。"
 tags: [Dart, 异步编程, Future, EventLoop]
-category: 学习笔记
+category: Dart学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
 image: ""

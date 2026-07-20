@@ -4,7 +4,7 @@ published: 2026-03-26
 pinned: false
 description: "状态管理是 Flutter 应用的灵魂。本章深入剖析 Provider 与 ChangeNotifier，带你掌握如何在复杂应用中实现优雅的数据流转与 UI 响应。"
 tags: [Flutter, 状态管理, Provider, ChangeNotifier]
-category: 学习笔记
+category: Dart学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
 image: ""

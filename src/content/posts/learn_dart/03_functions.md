@@ -4,6 +4,7 @@ published: 2026-03-17
 pinned: false
 description: "**理解 Dart 的一等公民。** 掌握命名参数、级联运算符与闭包的高级用法，写出极具表达力的代码。"
 tags: [Dart, Functions, Closures]
+category: Dart学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
 image: ""

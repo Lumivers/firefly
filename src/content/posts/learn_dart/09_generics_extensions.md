@@ -4,7 +4,7 @@ published: 2026-03-23
 pinned: false
 description: "探索 Dart 的高级进阶语法。通过泛型提升代码复用率，利用扩展方法（Extensions）为已有类注入新功能，让你的代码更加优雅、精炼。"
 tags: [Dart, 泛型, 扩展方法, 代码复用]
-category: 学习笔记
+category: Dart学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
 image: ""

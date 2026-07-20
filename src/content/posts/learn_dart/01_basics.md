@@ -4,7 +4,7 @@ published: 2026-03-15
 pinned: false
 description: "**从 C++ 迈向 Dart 的第一步。** 快速建立 Dart 的直观印象，深入解析如何从根源上消灭“空指针崩溃”的杀手锏。"
 tags: [Dart, Basics, Null Safety]
-category: 学习笔记
+category: Dart学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
 image: ""

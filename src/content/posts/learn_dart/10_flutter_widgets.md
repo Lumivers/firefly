@@ -4,7 +4,7 @@ published: 2026-03-24
 pinned: false
 description: "开启 Flutter 开发之旅。从渲染引擎到 Widget 树，深入理解 StatelessWidget 与 StatefulWidget 的生命周期，掌握构建复杂界面的基石。"
 tags: [Flutter, Widget, 生命管理, UI框架]
-category: 学习笔记
+category: Dart学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
 image: ""

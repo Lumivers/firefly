@@ -4,7 +4,7 @@ published: 2026-03-22
 pinned: false
 description: "掌握响应式编程的核心。从 StreamController 到 StreamTransformer，带你领略数据流在 Dart 中的强大威力，轻松应对实时数据交互场景。"
 tags: [Dart, Stream, 响应式编程, 事件流]
-category: 学习笔记
+category: Dart学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
 image: ""

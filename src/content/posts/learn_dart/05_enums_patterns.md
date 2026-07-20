@@ -4,7 +4,7 @@ published: 2026-03-19
 pinned: false
 description: "**Dart 3 的究极进化。** 见识比 C++ 强大百倍的增强枚举，以及如何利用模式匹配优雅地解构复杂 JSON 数据。"
 tags: [Dart, Enums, Pattern Matching]
-category: 学习笔记
+category: Dart学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
 image: ""

@@ -4,7 +4,7 @@ published: 2026-03-29
 pinned: false
 description: "深度解析 WebSocket 全双工通信。通过异步 Stream 与 Completer 模式，构建一个支持流式回复、文件分片上传及心跳重连的高性能网络系统。"
 tags: [Dart, WebSocket, 异步编程, 网络协议]
-category: 学习笔记
+category: Dart学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
 image: ""

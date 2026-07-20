@@ -4,7 +4,7 @@ published: 2026-03-28
 pinned: false
 description: "跨越 Dart 与 OS 的边界。深入实战 window_manager 与 tray_manager，掌握桌面应用的窗口控制、系统托盘及底层进程生命周期管理。"
 tags: [Flutter, 桌面开发, 进程管理, 平台集成]
-category: 学习笔记
+category: Dart学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
 image: ""

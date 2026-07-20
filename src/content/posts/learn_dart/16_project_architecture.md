@@ -4,7 +4,7 @@ published: 2026-03-30
 pinned: false
 description: "终章：鸟瞰 Lumi-Hub 全局架构。回顾从零到一的开发历程，沉淀 Dart/Flutter 最佳实践，绘制一张通往高级开发者进阶之路的知识全景图。"
 tags: [架构设计, 最佳实践, 知识地图, 深度总结]
-category: 学习笔记
+category: Dart学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
 image: ""

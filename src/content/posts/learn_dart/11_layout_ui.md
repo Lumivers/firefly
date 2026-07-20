@@ -4,7 +4,7 @@ published: 2026-03-25
 pinned: false
 description: "从 Row/Column 到 Stack/Container，深度解析 Flutter 的声明式布局系统。学习如何通过组件组合而非继承，构建出高性能且极具美感的桌面级 UI。"
 tags: [Flutter, 布局系统, Widget, 声明式UI]
-category: 学习笔记
+category: Dart学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
 image: ""

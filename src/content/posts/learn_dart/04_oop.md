@@ -4,7 +4,7 @@ published: 2026-03-18
 pinned: false
 description: "**超越传统类继承。** 相比 C++ 的多继承，Dart 的 Mixin 提供了更灵活的代码复用方案。掌握 copyWith 模式，拥抱不可变性。"
 tags: [Dart, OOP, Mixin]
-category: 学习笔记
+category: Dart学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
 image: ""

@@ -4,7 +4,7 @@ published: 2026-03-16
 pinned: false
 description: "**像操作 STL 一样优雅。** 探索 Dart 强大的集合操作符与函数式编程范式，让你的控制逻辑告别冗长循环。"
 tags: [Dart, Control Flow, Collections]
-category: 学习笔记
+category: Dart学习笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
 image: ""
