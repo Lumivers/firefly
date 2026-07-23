@@ -12,14 +12,14 @@ description: "与优秀的朋友们一起成长"
 你可以直接复制以下信息添加到你的友链中：
 - **站点名称**：lumivers
 - **站点描述**：Blog
-- **站点头像**：[https://firefly-7a0.pages.dev/avatar.jpg](https://firefly-7a0.pages.dev/avatar.jpg)
-- **站点链接**：[https://firefly-7a0.pages.dev](https://firefly-7a0.pages.dev)
-- **联系邮箱**：[xzq060312@163.com](mailto:xzq060312@163.com)
+- **站点头像**：[https://lumivers.pages.dev/avatar.jpg](https://lumivers.pages.dev/avatar.jpg)
+- **站点链接**：[https://lumivers.pages.dev](https://lumivers.pages.dev)
+- **联系邮箱**：[lumivers@163.com](mailto:lumivers@163.com)
 
 ## 🤝 申请说明
 
 1. **先友后链**：请先在您的网站友链页面添加本站信息。
-2. **提交申请**：在下方留言区留言，或发送邮件至 `xzq060312@163.com`。
+2. **提交申请**：在下方留言区留言，或发送邮件至 `lumivers@163.com`。
 3. **申请模板**：
    ```text
    站点名称：您的站点名称

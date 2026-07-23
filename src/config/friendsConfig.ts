@@ -30,9 +30,9 @@ export const friendsConfig: FriendLink[] = [
 	},
 	{
 		title: "晓风",
-		imgurl: "http://akatsuki-kaze.com.cn/images/avatar.jpg",
+		imgurl: "akatsuki-kaze.com.cn/images/avatar.jpg",
 		desc: "晓风的个人博客",
-		siteurl: "https://akatsuki-kaze.com.cn",
+		siteurl: "akatsuki-kaze.com.cn",
 		tags: ["Blog"],
 		weight: 2,
 		enabled: true,
