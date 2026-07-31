@@ -1,7 +1,8 @@
 ---
 title: "UE C++ 深入：从 Modern C++ 到就业级 Unreal 开发"
 published: 2026-06-06
-pinned: true
+pinned: false
+weight: 2
 description: "**UE C++ 就业级笔记 · 全景导航。** 面向已有 Modern C++ 基础的游戏开发者，4 部 23 章覆盖：UE C++ 语言体系 → 引擎核心框架（含 Subsystem/DataAsset/DataTable）→ 工业化子系统（GAS/AI/动画/物理）→ 工程实践（模块/构建/性能/编辑器/自动化测试）。每章：对比图解 → 原理剖析 → 经典陷阱 → 🎮 实战场景 → 30 秒速答。"
 tags: [C++, UE5, UnrealEngine, 游戏开发, UHT, GC, 面试, 就业]
 category: UE C++深入笔记
@@ -115,13 +116,13 @@ graph TB
 
 | 章节 | 主题 | 重要度 | 核心内容 |
 |------|------|--------|---------|
-| [**Ch1**](01_core_differences.md) | 全景对比：UE C++ vs Modern C++ | ★★★★★ | 历史原因、架构全景图、类型映射速查表、从 `std::` 到 Epic 体系的思维转换 |
-| **Ch2** | UHT 反射系统深入 | ★★★★★ | UHT 编译流程、四大宏（UCLASS/USTRUCT/UPROPERTY/UFUNCTION）展开原理、`.generated.h` 内容解析、蓝图互操作原理、UFUNCTION 说明符详解 |
-| **Ch3** | UObject 与 GC 机制 | ★★★★★ | 标记-清扫 GC 全流程、UObject 生命周期、`NewObject`/`SpawnActor`/`CreateDefaultSubobject` 的区别、`IsValid()` vs `nullptr`、GC 簇与性能优化、`TWeakObjectPtr`/`FObjectPtr` |
-| **Ch4** | 容器与字符串体系 | ★★★★☆ | TArray/TMap/TSet API 对照 STL、TInlineAllocator/TMemStackAllocator 策略、FString vs FName vs FText 决策树、字符串编码与转换（TCHAR/UTF-8/UTF-16） |
-| **Ch5** | 智能指针与内存分配 | ★★★★☆ | TSharedPtr/TUniquePtr/TWeakPtr vs STL 对比、UObject 为什么不能用智能指针、GMalloc 分配器体系、帧分配器与对象池、内存统计与泄漏检测 |
-| **Ch6** | 委托与事件系统 | ★★★★☆ | 单播/多播/动态委托的选择矩阵、DECLARE 宏族详解、委托绑定（BindUObject/BindLambda/BindRaw）、与 `std::function` 的性能对比、蓝图事件绑定 |
-| **Ch7** | 多线程与异步编程 | ★★★★☆ | GameThread 铁律与原理、FRunnable/AsyncTask/ParallelFor 使用场景、TaskGraph 系统、`FCriticalSection`/`FScopeLock`/`TAtomic`、渲染线程与游戏线程交互、`FRenderCommand`、▶ 进阶延伸：RDG（Render Dependency Graph）概览与 Niagara 数据传递 |
+| [**Ch1**](./01_core_differences/) | 全景对比：UE C++ vs Modern C++ | ★★★★★ | 历史原因、架构全景图、类型映射速查表、从 `std::` 到 Epic 体系的思维转换 |
+| [**Ch2**](./02_uht_reflection/) | UHT 反射系统深入 | ★★★★★ | UHT 编译流程、四大宏（UCLASS/USTRUCT/UPROPERTY/UFUNCTION）展开原理、`.generated.h` 内容解析、蓝图互操作原理、UFUNCTION 说明符详解 |
+| [**Ch3**](./03_uobject_gc/) | UObject 与 GC 机制 | ★★★★★ | 标记-清扫 GC 全流程、UObject 生命周期、`NewObject`/`SpawnActor`/`CreateDefaultSubobject` 的区别、`IsValid()` vs `nullptr`、GC 簇与性能优化、`TWeakObjectPtr`/`FObjectPtr` |
+| [**Ch4**](./04_containers_strings/) | 容器与字符串体系 | ★★★★☆ | TArray/TMap/TSet API 对照 STL、TInlineAllocator/TMemStackAllocator 策略、FString vs FName vs FText 决策树、字符串编码与转换（TCHAR/UTF-8/UTF-16） |
+| [**Ch5**](./05_smart_pointers/) | 智能指针与内存分配 | ★★★★☆ | TSharedPtr/TUniquePtr/TWeakPtr vs STL 对比、UObject 为什么不能用智能指针、GMalloc 分配器体系、帧分配器与对象池、内存统计与泄漏检测 |
+| [**Ch6**](./06_delegates/) | 委托与事件系统 | ★★★★☆ | 单播/多播/动态委托的选择矩阵、DECLARE 宏族详解、委托绑定（BindUObject/BindLambda/BindRaw）、与 `std::function` 的性能对比、蓝图事件绑定 |
+| [**Ch7**](./07_concurrency/) | 多线程与异步编程 | ★★★★☆ | GameThread 铁律与原理、FRunnable/AsyncTask/ParallelFor 使用场景、TaskGraph 系统、`FCriticalSection`/`FScopeLock`/`TAtomic`、渲染线程与游戏线程交互、`FRenderCommand`、▶ 进阶延伸：RDG（Render Dependency Graph）概览与 Niagara 数据传递 |
 
 ---
 
@@ -131,12 +132,12 @@ graph TB
 
 | 章节 | 主题 | 重要度 | 核心内容 |
 |------|------|--------|---------|
-| [**Ch8**](08_actor_component.md) | Actor 与 Component 模型 | ★★★★★ | Actor 生命周期（BeginPlay/Tick/EndPlay）、Component 类型（Scene/Actor/ChildActor）、RootComponent、组件附着与层级、ECS 思想在 UE 中的体现 |
-| [**Ch9**](09_game_framework_subsystem.md) | Game Framework 与 Subsystem 体系 | ★★★★★ | **Game Framework**：GameMode/GameState/PlayerController/Pawn/PlayerState/HUD/GameInstance 各司其职、游戏流程控制、关卡切换与 Seamless Travel；**Subsystem（UE5 核心模式）**：`UGameInstanceSubsystem` / `UWorldSubsystem` / `ULocalPlayerSubsystem` / `UEditorSubsystem` 的使用场景、生命周期、与传统 GameMode 解耦的实战对比、Subsystem 依赖链与初始化顺序 |
-| [**Ch10**](10_input_system.md) | 输入系统 | ★★★★☆ | Enhanced Input 架构（InputAction/InputMappingContext/Modifier/Trigger）、旧版 Axis/Action 映射、输入优先级与消费、触屏与手柄适配 |
-| [**Ch11**](11_slate_umg.md) | Slate 与 UMG | ★★★★☆ | Slate 底层声明式语法、UMG Widget 体系、Widget Reflector 调试、ListView/TreeView 数据驱动、UI 动画与材质、本地化（FText 与 StringTable） |
-| **Ch12** | 序列化与网络复制 | ★★★★★ | FArchive 序列化体系、UPROPERTY 序列化条件、SaveGame 实战、网络复制基础（Replicated/ReplicatedUsing/NetMulticast）、RPC（Server/Client/NetMulticast）、网络角色与相关性、属性复制条件 |
-| **Ch13** | 数据驱动与资源管理 | ★★★★☆ | **DataAsset**：`UPrimaryDataAsset` / `UDataAsset` 替代硬编码、编辑器配置工作流；**DataTable**：`FTableRowBase`、`UDataTable` 的 C++ 读取、Composite DataTable、Curve Table；**软引用最佳实践**：`TSoftObjectPtr` / `FSoftObjectPath` 在大规模数据中的内存策略、同步 vs 异步加载；**Asset Manager**：Primary Asset 标签体系、`StreamableManager`、Level Streaming |
+| [**Ch8**](./08_actor_component/) | Actor 与 Component 模型 | ★★★★★ | Actor 生命周期（BeginPlay/Tick/EndPlay）、Component 类型（Scene/Actor/ChildActor）、RootComponent、组件附着与层级、ECS 思想在 UE 中的体现 |
+| [**Ch9**](./09_game_framework_subsystem/) | Game Framework 与 Subsystem 体系 | ★★★★★ | **Game Framework**：GameMode/GameState/PlayerController/Pawn/PlayerState/HUD/GameInstance 各司其职、游戏流程控制、关卡切换与 Seamless Travel；**Subsystem（UE5 核心模式）**：`UGameInstanceSubsystem` / `UWorldSubsystem` / `ULocalPlayerSubsystem` / `UEditorSubsystem` 的使用场景、生命周期、与传统 GameMode 解耦的实战对比、Subsystem 依赖链与初始化顺序 |
+| [**Ch10**](./10_input_system/) | 输入系统 | ★★★★☆ | Enhanced Input 架构（InputAction/InputMappingContext/Modifier/Trigger）、旧版 Axis/Action 映射、输入优先级与消费、触屏与手柄适配 |
+| [**Ch11**](./11_slate_umg/) | Slate 与 UMG | ★★★★☆ | Slate 底层声明式语法、UMG Widget 体系、Widget Reflector 调试、ListView/TreeView 数据驱动、UI 动画与材质、本地化（FText 与 StringTable） |
+| [**Ch12**](./12_serialization_networking/) | 序列化与网络复制 | ★★★★★ | FArchive 序列化体系、UPROPERTY 序列化条件、SaveGame 实战、网络复制基础（Replicated/ReplicatedUsing/NetMulticast）、RPC（Server/Client/NetMulticast）、网络角色与相关性、属性复制条件 |
+| [**Ch13**](./13_data_asset_management/) | 数据驱动与资源管理 | ★★★★☆ | **DataAsset**：`UPrimaryDataAsset` / `UDataAsset` 替代硬编码、编辑器配置工作流；**DataTable**：`FTableRowBase`、`UDataTable` 的 C++ 读取、Composite DataTable、Curve Table；**软引用最佳实践**：`TSoftObjectPtr` / `FSoftObjectPath` 在大规模数据中的内存策略、同步 vs 异步加载；**Asset Manager**：Primary Asset 标签体系、`StreamableManager`、Level Streaming |
 
 ---
 
@@ -146,11 +147,11 @@ graph TB
 
 | 章节 | 主题 | 重要度 | 核心内容 |
 |------|------|--------|---------|
-| **Ch14** | Gameplay Ability System | ★★★★★ | GAS 架构全景（ASC/AttributeSet/GameplayAbility/GameplayEffect/GameplayCue/GameplayTag）、Attribute 变化与 Modifier、Ability 激活与取消、Cost 与 Cooldown、网络预测与回滚、GAS 调试 |
-| **Ch15** | AI 系统 | ★★★★☆ | Behavior Tree 节点类型（Selector/Sequence/Decorator/Service/Task）、Blackboard、EQS 环境查询、AI Perception（视觉/听觉/伤害感知）、AIController 与 NavMesh |
-| **Ch16** | 动画系统 | ★★★★☆ | AnimBlueprint 与 AnimInstance C++ 交互、状态机与 BlendSpace、IK（Two Bone/CCD/FABRIK）、Animation Notify/NotifyState、Montage 与 Slot、Root Motion、Motion Warping |
-| **Ch17** | 物理与碰撞 | ★★★★☆ | Chaos 物理引擎基础、碰撞通道与 Preset、Trace（Line/Sphere/Box/Capsule）实战、PhysicsConstraint、物理材质、破坏系统概览 |
-| **Ch18** | 音频系统 | ★★★☆☆ | MetaSounds 基础、AudioComponent、SoundCue 节点编辑、Submix 与 Audio Bus、空间音频（Attenuation/HRTF） |
+| [**Ch14**](./14_gas_ability_system/) | Gameplay Ability System | ★★★★★ | GAS 架构全景（ASC/AttributeSet/GameplayAbility/GameplayEffect/GameplayCue/GameplayTag）、Attribute 变化与 Modifier、Ability 激活与取消、Cost 与 Cooldown、网络预测与回滚、GAS 调试 |
+| [**Ch15**](./15_ai_system/) | AI 系统 | ★★★★☆ | Behavior Tree 节点类型（Selector/Sequence/Decorator/Service/Task）、Blackboard、EQS 环境查询、AI Perception（视觉/听觉/伤害感知）、AIController 与 NavMesh |
+| [**Ch16**](./16_animation_system/) | 动画系统 | ★★★★☆ | AnimBlueprint 与 AnimInstance C++ 交互、状态机与 BlendSpace、IK（Two Bone/CCD/FABRIK）、Animation Notify/NotifyState、Montage 与 Slot、Root Motion、Motion Warping |
+| [**Ch17**](./17_physics_collision/) | 物理与碰撞 | ★★★★☆ | Chaos 物理引擎基础、碰撞通道与 Preset、Trace（Line/Sphere/Box/Capsule）实战、PhysicsConstraint、物理材质、破坏系统概览 |
+| [**Ch18**](./18_audio_system/) | 音频系统 | ★★★☆☆ | MetaSounds 基础、AudioComponent、SoundCue 节点编辑、Submix 与 Audio Bus、空间音频（Attenuation/HRTF） |
 
 ---
 
@@ -160,11 +161,11 @@ graph TB
 
 | 章节 | 主题 | 重要度 | 核心内容 |
 |------|------|--------|---------|
-| **Ch19** | 模块与构建系统 | ★★★★☆ | .Build.cs 与模块依赖、.Target.cs 与构建配置、.uproject 与插件描述、UBT 编译流程、Public/Private 目录规范、模块加载与卸载 |
-| **Ch20** | Epic 编码规范与最佳实践 | ★★★★☆ | 命名前缀体系（U/A/F/I/E/T/S/b）、禁用特性（异常/RTTI/STL 公共 API）、`check`/`ensure`/`verify` 错误处理、`Cast<T>` 类型安全转换、接口与多重继承、Asset Naming Convention |
-| **Ch21** | 性能分析与优化 | ★★★★☆ | Unreal Insights 使用、stat 命令族（stat unit/game/scenerendering/memory）、迭代优化方法论、常见性能陷阱（Tick 滥用/蓝图与 C++ 边界/GC 抖动）、Slate 性能、RenderDoc 基础 |
-| **Ch22** | 编辑器扩展 | ★★★☆☆ | Details Panel 自定义（IDetailCustomization）、Asset Factory 自定义导入、菜单与工具栏扩展、Editor Utility Widget/Blueprint、Asset Action 与 Thumbnail、Slate 编辑器面板 |
-| **Ch23** | 自动化测试 | ★★★★☆ | Automation Spec 编写 C++ 单元测试、Latent Commands（异步/延迟测试）、Functional Test（关卡内行为测试）、Gauntlet 框架概览、测试驱动开发在 UE 中的实践、如何在 CI 中跑 UE 测试 |
+| [**Ch19**](./19_build_system/) | 模块与构建系统 | ★★★★☆ | .Build.cs 与模块依赖、.Target.cs 与构建配置、.uproject 与插件描述、UBT 编译流程、Public/Private 目录规范、模块加载与卸载 |
+| [**Ch20**](./20_coding_standards/) | Epic 编码规范与最佳实践 | ★★★★☆ | 命名前缀体系（U/A/F/I/E/T/S/b）、禁用特性（异常/RTTI/STL 公共 API）、`check`/`ensure`/`verify` 错误处理、`Cast<T>` 类型安全转换、接口与多重继承、Asset Naming Convention |
+| [**Ch21**](./21_performance_optimization/) | 性能分析与优化 | ★★★★☆ | Unreal Insights 使用、stat 命令族（stat unit/game/scenerendering/memory）、迭代优化方法论、常见性能陷阱（Tick 滥用/蓝图与 C++ 边界/GC 抖动）、Slate 性能、RenderDoc 基础 |
+| [**Ch22**](./22_editor_extensions/) | 编辑器扩展 | ★★★☆☆ | Details Panel 自定义（IDetailCustomization）、Asset Factory 自定义导入、菜单与工具栏扩展、Editor Utility Widget/Blueprint、Asset Action 与 Thumbnail、Slate 编辑器面板 |
+| [**Ch23**](./23_automated_testing/) | 自动化测试 | ★★★★☆ | Automation Spec 编写 C++ 单元测试、Latent Commands（异步/延迟测试）、Functional Test（关卡内行为测试）、Gauntlet 框架概览、测试驱动开发在 UE 中的实践、如何在 CI 中跑 UE 测试 |
 
 ---
 

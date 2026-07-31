@@ -2,6 +2,7 @@
 title: "C++ 面试突击：从语法到底层"
 published: 2026-04-22
 pinned: true
+weight: 3
 description: "**面试突击系列 · 全景导航。** 10 章内容覆盖 C++ 内存模型、智能指针、OOP 多态、移动语义、模板泛型、编译链接、并发多线程、现代 C++ 特性、异常处理与运算符重载——面向游戏客户端开发岗，从原理剖析到游戏实战，从经典陷阱到 30 秒速答。"
 tags: [C++, 面试, 游戏开发, 导航]
 category: C++深入笔记
@@ -58,16 +59,16 @@ graph LR
 
 | 章节 | 主题 | 面试权重 | 核心考点 |
 |------|------|---------|---------|
-| [**第一章**](../01_memory_model) | 内存模型与对象布局 | ★★★★★ | 五大内存区、字节对齐、new/delete、对象池 |
-| [**第二章**](../02_pointers_and_smart_pointers) | 指针、引用与智能指针 | ★★★★★ | unique/shared/weak_ptr、循环引用、RAII |
-| [**第三章**](../03_oop_and_polymorphism) | OOP 深入：虚函数与多态 | ★★★★★ | vtable/vptr、多继承布局、四种 cast、ECS |
-| [**第四章**](../04_move_semantics) | 值类别、移动语义与完美转发 | ★★★★☆ | 左值右值、std::move、RVO、emplace_back |
-| [**第五章**](../05_templates) | 模板与泛型编程 | ★★★☆☆ | SFINAE、变参模板、if constexpr、Concepts |
-| [**第六章**](../06_compilation_and_linking) | 编译、链接与构建 | ★★★★☆ | 四阶段流程、ODR、static 五种含义、热重载 |
-| [**第七章**](../07_concurrency) | 并发与多线程 | ★★★★☆ | mutex、atomic、条件变量、无锁队列、线程池 |
-| [**第八章**](../08_modern_cpp) | 现代 C++ 特性精选 | ★★★☆☆ | auto、Lambda、optional/variant、协程 |
-| [**第九章**](../09_exception_handling) | 异常处理与异常安全 | ★★★★☆ | 栈展开、三种安全保证、noexcept、构造/析构异常 |
-| [**第十章**](../10_operator_overloading) | 运算符重载 | ★★★☆☆ | 成员/非成员选择、三路比较<=>、ADL、类型转换运算符 |
+| [**第一章**](./01_memory_model/) | 内存模型与对象布局 | ★★★★★ | 五大内存区、字节对齐、new/delete、对象池 |
+| [**第二章**](./02_pointers_and_smart_pointers/) | 指针、引用与智能指针 | ★★★★★ | unique/shared/weak_ptr、循环引用、RAII |
+| [**第三章**](./03_oop_and_polymorphism/) | OOP 深入：虚函数与多态 | ★★★★★ | vtable/vptr、多继承布局、四种 cast、ECS |
+| [**第四章**](./04_move_semantics/) | 值类别、移动语义与完美转发 | ★★★★☆ | 左值右值、std::move、RVO、emplace_back |
+| [**第五章**](./05_templates/) | 模板与泛型编程 | ★★★☆☆ | SFINAE、变参模板、if constexpr、Concepts |
+| [**第六章**](./06_compilation_and_linking/) | 编译、链接与构建 | ★★★★☆ | 四阶段流程、ODR、static 五种含义、热重载 |
+| [**第七章**](./07_concurrency/) | 并发与多线程 | ★★★★☆ | mutex、atomic、条件变量、无锁队列、线程池 |
+| [**第八章**](./08_modern_cpp/) | 现代 C++ 特性精选 | ★★★☆☆ | auto、Lambda、optional/variant、协程 |
+| [**第九章**](./09_exception_handling/) | 异常处理与异常安全 | ★★★★☆ | 栈展开、三种安全保证、noexcept、构造/析构异常 |
+| [**第十章**](./10_operator_overloading/) | 运算符重载 | ★★★☆☆ | 成员/非成员选择、三路比较<=>、ADL、类型转换运算符 |
 
 ---
 

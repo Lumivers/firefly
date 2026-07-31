@@ -4,9 +4,9 @@ import Pagination from "@/components/common/Pagination.astro";
 import PostPage from "@/components/layout/PostPage.astro";
 import { siteConfig } from "@/config";
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
-import { getSortedPosts } from "@/utils/content-utils";
+import { getSortedPostsForList } from "@/utils/content-utils";
 export const getStaticPaths = (async ({ paginate }) => {
-	const allBlogPosts = await getSortedPosts();
+	const allBlogPosts = await getSortedPostsForList();
 	// 使用配置中的文章数量
 	const pageSize = siteConfig.pagination.postsPerPage;
 	return paginate(allBlogPosts, { pageSize });

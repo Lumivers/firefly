@@ -2,6 +2,7 @@
 title: "C# 面试突击：从类型系统到游戏引擎"
 published: 2026-05-17
 pinned: true
+weight: 11
 description: "**校招面试系列 · C# 全景导航。** 12 章内容覆盖 C# 类型系统、GC、OOP、委托、泛型、LINQ、异步、模式匹配、CLR 运行时、MonoBehaviour 底层、Unity 性能优化与 C# 设计模式——面向游戏客户端开发岗，从 IL 代码到运行时行为，从底层原理到游戏实战。"
 tags: [C#, Unity, 面试, 游戏开发, 导航]
 category: C#学习笔记
@@ -78,18 +79,18 @@ graph LR
 
 | 章节 | 主题 | 行数 | 图解 | 面试权重 | 核心考点 |
 |------|------|------|------|---------|---------|
-| [**第一章**](01_type_system.md) | 类型系统与内存布局 | 705 | 3 | ★★★★★ | 值/引用双轨、装箱拆箱、ref 返回、Span&lt;T&gt;、struct vs class |
-| [**第二章**](02_gc_and_resource_management.md) | GC 与资源管理 | 726 | 3 | ★★★★★ | 分代 GC、Finalizer vs IDisposable、using 展开、对象池 |
-| [**第三章**](03_oop_csharp.md) | OOP 深入 | 645 | 4 | ★★★★★ | 属性 IL 编译、索引器、event 展开、interface 默认实现、sealed |
-| [**第四章**](04_operators_delegates_events.md) | 运算符、委托与闭包 | 868 | 3 | ★★★★☆ | 运算符规则、MulticastDelegate、闭包类生成、static lambda、表达式树 |
-| [**第五章**](05_generics_and_collections.md) | 泛型与集合 | 758 | 3 | ★★★★★ | reified generics、JIT 代码共享、协变逆变、Dictionary 内部、EqualityComparer 选择链 |
-| [**第六章**](06_linq_and_lambda.md) | LINQ 与 Lambda | 703 | 3 | ★★★★☆ | yield 状态机、延迟执行、IQueryable 表达式树转换、GroupBy 缓冲、性能陷阱 |
-| [**第七章**](07_async_programming.md) | 异步编程 | 661 | 3 | ★★★★★ | Task 状态机、SynchronizationContext、ConfigureAwait、CancellationToken、IAsyncEnumerable |
-| [**第八章**](08_pattern_matching_and_modern_csharp.md) | 模式匹配与现代 C# | 992 | 5 | ★★★★☆ | is/switch 模式、record 值相等、with 表达式、Source Generator、列表模式 |
-| [**第九章**](09_clr_and_compilation.md) | CLR 与编译管线 | 687 | 4 | ★★★★☆ | JIT 分层编译、IL2CPP 管线与泛型代码共享、ReadyToRun vs NativeAOT、AssemblyLoadContext |
-| [**第十章**](10_monobehaviour_in_depth.md) | MonoBehaviour 深入 | 784 | 3 | ★★★★★ | 生命周期、序列化、Coroutine 驱动原理、执行顺序、null 检查陷阱 |
-| [**第十一章**](11_unity_performance.md) | Unity C# 性能优化 | 838 | 3 | ★★★★★ | GC 避免六策略、Job System + Burst、IL2CPP 优化、Material/Transform 陷阱 |
-| [**第十二章**](12_csharp_design_patterns.md) | C# 设计模式与游戏架构 | 980 | 3 | ★★★★★ | event 替代 Observer、delegate 重构 Strategy、record+模式匹配替代 Visitor、EventBus 架构 |
+| [**第一章**](./01_type_system/) | 类型系统与内存布局 | 705 | 3 | ★★★★★ | 值/引用双轨、装箱拆箱、ref 返回、Span&lt;T&gt;、struct vs class |
+| [**第二章**](./02_gc_and_resource_management/) | GC 与资源管理 | 726 | 3 | ★★★★★ | 分代 GC、Finalizer vs IDisposable、using 展开、对象池 |
+| [**第三章**](./03_oop_csharp/) | OOP 深入 | 645 | 4 | ★★★★★ | 属性 IL 编译、索引器、event 展开、interface 默认实现、sealed |
+| [**第四章**](./04_operators_delegates_events/) | 运算符、委托与闭包 | 868 | 3 | ★★★★☆ | 运算符规则、MulticastDelegate、闭包类生成、static lambda、表达式树 |
+| [**第五章**](./05_generics_and_collections/) | 泛型与集合 | 758 | 3 | ★★★★★ | reified generics、JIT 代码共享、协变逆变、Dictionary 内部、EqualityComparer 选择链 |
+| [**第六章**](./06_linq_and_lambda/) | LINQ 与 Lambda | 703 | 3 | ★★★★☆ | yield 状态机、延迟执行、IQueryable 表达式树转换、GroupBy 缓冲、性能陷阱 |
+| [**第七章**](./07_async_programming/) | 异步编程 | 661 | 3 | ★★★★★ | Task 状态机、SynchronizationContext、ConfigureAwait、CancellationToken、IAsyncEnumerable |
+| [**第八章**](./08_pattern_matching_and_modern_csharp/) | 模式匹配与现代 C# | 992 | 5 | ★★★★☆ | is/switch 模式、record 值相等、with 表达式、Source Generator、列表模式 |
+| [**第九章**](./09_clr_and_compilation/) | CLR 与编译管线 | 687 | 4 | ★★★★☆ | JIT 分层编译、IL2CPP 管线与泛型代码共享、ReadyToRun vs NativeAOT、AssemblyLoadContext |
+| [**第十章**](./10_monobehaviour_in_depth/) | MonoBehaviour 深入 | 784 | 3 | ★★★★★ | 生命周期、序列化、Coroutine 驱动原理、执行顺序、null 检查陷阱 |
+| [**第十一章**](./11_unity_performance/) | Unity C# 性能优化 | 838 | 3 | ★★★★★ | GC 避免六策略、Job System + Burst、IL2CPP 优化、Material/Transform 陷阱 |
+| [**第十二章**](./12_csharp_design_patterns) | C# 设计模式与游戏架构 | 980 | 3 | ★★★★★ | event 替代 Observer、delegate 重构 Strategy、record+模式匹配替代 Visitor、EventBus 架构 |
 
 **总计：9,347 行，41 幅 Mermaid 图解**
 

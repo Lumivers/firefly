@@ -1,7 +1,8 @@
 ---
 title: "操作系统笔记：从进程到协程"
 published: 2026-04-27
-pinned: true
+pinned: false
+weight: 7
 description: "**面试突击系列 · 操作系统全景导航。** 9 章内容覆盖进程线程、同步互斥、内存管理、CPU 缓存、进程调度、IPC、文件 I/O、协程与调试性能分析——面向游戏客户端开发岗，从底层原理到游戏实战，从经典陷阱到 30 秒速答。"
 tags: [操作系统, 面试, 游戏开发, 导航]
 category: 操作系统笔记
@@ -55,15 +56,15 @@ graph LR
 
 | 章节 | 主题 | 面试权重 | 核心考点 |
 |------|------|---------|---------|
-| [**第一章**](../01_process_and_thread) | 进程与线程 | ★★★★★ | fork/COW、PCB、上下文切换、线程模型、线程池 |
-| [**第二章**](../02_synchronization) | 进程同步与互斥 | ★★★★★ | 竞态条件、死锁、CAS/futex、信号量、读写锁、无锁队列 |
-| [**第三章**](../03_memory_management) | 内存管理 | ★★★★★ | 虚拟内存、多级页表、TLB、页面置换、mmap、自定义分配器 |
-| [**第四章**](../04_cpu_cache) | CPU 缓存与性能优化 | ★★★★★ | Cache Line、MESI 协议、伪共享、分支预测、ECS 缓存优势 |
-| [**第五章**](../05_process_scheduling) | 进程调度 | ★★★★☆ | FCFS/SJF/RR/MLFQ、CFS/vruntime、优先级反转、游戏主循环 |
-| [**第六章**](../06_ipc) | 进程间通信 | ★★★★☆ | 管道、消息队列、共享内存、信号、Unix Socket、多进程架构 |
-| [**第七章**](../07_file_io) | 文件系统与 I/O | ★★★☆☆ | inode/dentry/fd、epoll/io_uring、零拷贝、PAK 虚拟文件系统 |
-| [**第八章**](../08_coroutine) | 协程 | ★★★★☆ | 有栈/无栈协程、C++20 co_await/co_yield、协程帧、UE5 Latent Action |
-| [**第九章**](../09_debug_and_profiling) | 调试与性能分析 | ★★★★☆ | strace/gdb/perf/火焰图、valgrind/ASan、帧时间分析、内存追踪 |
+| [**第一章**](./01_process_and_thread/) | 进程与线程 | ★★★★★ | fork/COW、PCB、上下文切换、线程模型、线程池 |
+| [**第二章**](./02_synchronization/) | 进程同步与互斥 | ★★★★★ | 竞态条件、死锁、CAS/futex、信号量、读写锁、无锁队列 |
+| [**第三章**](./03_memory_management/) | 内存管理 | ★★★★★ | 虚拟内存、多级页表、TLB、页面置换、mmap、自定义分配器 |
+| [**第四章**](./04_cpu_cache/) | CPU 缓存与性能优化 | ★★★★★ | Cache Line、MESI 协议、伪共享、分支预测、ECS 缓存优势 |
+| [**第五章**](./05_process_scheduling/) | 进程调度 | ★★★★☆ | FCFS/SJF/RR/MLFQ、CFS/vruntime、优先级反转、游戏主循环 |
+| [**第六章**](./06_ipc/) | 进程间通信 | ★★★★☆ | 管道、消息队列、共享内存、信号、Unix Socket、多进程架构 |
+| [**第七章**](./07_file_io/) | 文件系统与 I/O | ★★★☆☆ | inode/dentry/fd、epoll/io_uring、零拷贝、PAK 虚拟文件系统 |
+| [**第八章**](./08_coroutine/) | 协程 | ★★★★☆ | 有栈/无栈协程、C++20 co_await/co_yield、协程帧、UE5 Latent Action |
+| [**第九章**](./09_debug_and_profiling/) | 调试与性能分析 | ★★★★☆ | strace/gdb/perf/火焰图、valgrind/ASan、帧时间分析、内存追踪 |
 
 ---
 
@@ -108,22 +109,6 @@ Week 2: Ch5 → Ch6 → Ch7 → Ch8 → Ch9
 - 🛠 **工具实战**：Ch9 覆盖完整的调试与性能分析工具链（gdb/perf/strace/火焰图）
 - 🔗 **交叉引用**：深度关联 C++ 深入笔记、数据结构笔记系列
 
-### 与其他系列的交叉引用
-
-| 操作系统章节 | 交叉引用 |
-|------------|---------|
-| Ch1 进程与线程 | → [C++ Ch7](../cpp_deep_dive/07_concurrency) — std::thread、线程池 |
-| Ch2 同步互斥 | → [C++ Ch7](../cpp_deep_dive/07_concurrency) — atomic、condition_variable |
-| Ch3 内存管理 | → [C++ Ch1](../cpp_deep_dive/01_memory_model) — Pool/Frame Allocator、new/delete |
-| Ch4 CPU 缓存 | → [C++ Ch1](../cpp_deep_dive/01_memory_model) — SoA vs AoS、SIMD |
-| Ch5 进程调度 | → 游戏引擎 Ch1 — Game Loop（待发布） |
-| Ch6 进程间通信 | → [网络 Ch5](../network/05_socket_and_io) — Socket 编程 |
-| Ch7 文件 I/O | → [C++ Ch1](../cpp_deep_dive/01_memory_model) — placement new、内存映射 |
-| Ch8 协程 | → [C++ Ch8](../cpp_deep_dive/08_modern_cpp) — C++20 协程 |
-| Ch9 调试 | → [C++ Ch1](../cpp_deep_dive/01_memory_model) — 内存泄漏排查 |
-
----
-
 ## 面试覆盖矩阵
 
 ```
@@ -138,7 +123,3 @@ Ch7 文件与 I/O        ●      ●       -        ●●       ●
 Ch8 协程              ●      -       ●●       ●●       -
 Ch9 调试与性能        ●      ●●      ●●       ●●●      ●●●
 ```
-
----
-
-> 📖 本系列定位：大厂游戏客户端开发岗面试备战。与 [C++ 深入笔记](../cpp_deep_dive/) 互补——C++ 系列侧重语言机制的底层实现，操作系统系列侧重系统资源的调度与管理。两个系列合在一起，覆盖游戏客户端面试 80% 以上的技术深度题。

@@ -10,11 +10,16 @@ async function getRawSortedPosts() {
 	});
 
 	const sorted = allBlogPosts.sort((a, b) => {
-		// 首先按置顶状态排序，置顶文章在前
+		// 首先按权重排序（数值越小越靠前）
+		const weightA = a.data.weight ?? 0;
+		const weightB = b.data.weight ?? 0;
+		if (weightA !== weightB) return weightA - weightB;
+
+		// 权重相同，按置顶状态排序，置顶文章在前
 		if (a.data.pinned && !b.data.pinned) return -1;
 		if (!a.data.pinned && b.data.pinned) return 1;
 
-		// 如果置顶状态相同，则按发布日期排序
+		// 置顶状态相同，按发布日期排序
 		const dateA = new Date(a.data.published);
 		const dateB = new Date(b.data.published);
 		return dateA > dateB ? -1 : 1;
@@ -50,6 +55,44 @@ export async function getSortedPostsList(): Promise<PostForList[]> {
 	}));
 
 	return sortedPostsList;
+}
+
+/**
+ * 获取用于列表展示的文章（过滤掉有 index.md 的目录下的子页面）
+ * 子页面仍可通过 index 页面的链接访问，且保留 prev/next 导航
+ */
+export async function getSortedPostsForList() {
+	const allPosts = await getSortedPosts();
+
+	// Astro glob loader 对 index.md 的 ID 生成规则：
+	// - ue_cpp/index.md → id = "ue_cpp"（目录名，不带 /index）
+	// - ue_cpp/01_core_differences.md → id = "ue_cpp/01_core_differences"
+	// 因此，id 不含 "/" 的就是顶层文章或目录 index
+
+	// 收集所有文章 id，用于判断一个 post 是否是某个目录的 index
+	const allIds = new Set(allPosts.map((p) => p.id));
+
+	// 收集有子文章的目录（即自身是 index 的 post）
+	const dirs_with_index = new Set<string>();
+	for (const id of allIds) {
+		for (const otherId of allIds) {
+			if (otherId !== id && otherId.startsWith(id + "/")) {
+				dirs_with_index.add(id);
+				break;
+			}
+		}
+	}
+
+	// 过滤：如果父目录有 index，则过滤掉（包括嵌套 index，如 data_structure/tree）
+	const filtered = allPosts.filter((post) => {
+		const slash = post.id.lastIndexOf("/");
+		if (slash === -1) return true; // 顶层文章或目录 index，保留
+		const parentDir = post.id.substring(0, slash);
+		// 父目录有 index → 当前 post 是子页面或嵌套 index，过滤掉
+		return !dirs_with_index.has(parentDir);
+	});
+
+	return filtered;
 }
 export type Tag = {
 	name: string;

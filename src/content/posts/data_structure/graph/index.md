@@ -48,7 +48,7 @@ draft: false
 
 ## 章节导航
 
-### 📗 [7.1 图的表示与遍历](./07_01_graph_basics)
+### 📗 [7.1 图的表示与遍历](./07_01_graph_basics/)
 
 > 从图的分类（有/无向、有/无权、稀疏/稠密）到两种存储方式（邻接矩阵 / 邻接表），掌握 BFS 和 DFS 的完整实现，以及连通分量、环检测等基础算法。
 
@@ -63,7 +63,7 @@ draft: false
 
 ---
 
-### 📘 [7.2 最短路径：Dijkstra & A*](./07_02_shortest_path)
+### 📘 [7.2 最短路径：Dijkstra & A*](./07_02_shortest_path/)
 
 > 从单源最短路径（Dijkstra / Bellman-Ford）到多源最短路径（Floyd-Warshall），以及游戏寻路的核心算法 A*。
 
@@ -78,7 +78,7 @@ draft: false
 
 ---
 
-### 📙 [7.3 最小生成树 & 拓扑排序](./07_03_mst_topo)
+### 📙 [7.3 最小生成树 & 拓扑排序](./07_03_mst_topo/)
 
 > 最小生成树（Kruskal / Prim）保证用最小代价连通所有节点；拓扑排序（Kahn / DFS）为 DAG 排列出合法执行顺序。
 
