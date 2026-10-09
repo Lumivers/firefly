@@ -20,8 +20,8 @@ draft: false
 
 因此，我打算将上位机开发的大部分核心知识做个系统性的梳理与统一，并保持持续更新，供大家参考和查阅。
 
-- [Ch1 整车级系统架构与技术选型：为什么必须是 C++ 底座 + Python 决策？](./1,architecture/)
-- [Ch2 开发环境搭建与工具链配置](./2,create_environment/)
+- [Ch1 整车级系统架构与技术选型：为什么选择 C++ 底座 + Python 决策？](./1,architecture/)
+- [Ch2 现代 ROS 2 混合工程工作空间与开发脚手架](./2,create_environment/)
 - [Ch3 串口协议与硬件接口抽象](./3,hardware_contract/)
 - [Ch4 轻量消息总线与三层架构](./4,message_bus/)
 - [Ch5 感知与定位流水线](./5,perception/)
