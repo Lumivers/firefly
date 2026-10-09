@@ -38,7 +38,7 @@ git config --global user.email "你的常用邮箱@xxx.com"
 
 > **代码托管平台建议**：  
 > 队内日常协作强烈推荐使用 **Gitee（码云）**，服务器在国内，没有网络限制，拉取速度极快。  
-> 如果必须使用 GitHub，请注意：**GitHub 早已禁用了直接输入账号密码推送代码的功能**。最稳妥的方式是在第二章中配置好 SSH 秘钥后，把你的 `id_ed25519.pub` 公钥粘贴到 GitHub 的 `Settings -> SSH and GPG keys` 中，以后克隆和推送一律使用 `git@github.com:...` 形式的 SSH 链接，免密且永不鉴权失败。
+> 如果必须使用 GitHub，请注意：**GitHub 早已禁用了直接输入账号密码推送代码的功能**。最稳妥的方式是在第二章中配置好 SSH 秘钥后，把你的 `id_ed25519.pub` 公钥粘贴到 GitHub 的 `Settings -> SSH and GPG keys` 中，以后克隆和推送一律使用 `git@github.com:...` 形式的 SSH 链接，免密且不会鉴权失败。
 
 ---
 

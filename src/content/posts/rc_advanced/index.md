@@ -20,7 +20,7 @@ draft: false
 
 因此，我打算将上位机开发的大部分核心知识做个系统性的梳理与统一，并保持持续更新，供大家参考和查阅。
 
-- [Ch1 最重要的一课：git的使用（已移至新手篇）](../rc_basic/01_how_to_use_git/)
+- [Ch1 整车级系统架构与技术选型：为什么必须是 C++ 底座 + Python 决策？](./1,architecture/)
 - [Ch2 开发环境搭建与工具链配置](./2,create_environment/)
 - [Ch3 串口协议与硬件接口抽象](./3,hardware_contract/)
 - [Ch4 轻量消息总线与三层架构](./4,message_bus/)
