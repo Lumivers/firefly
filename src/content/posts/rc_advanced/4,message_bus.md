@@ -2,7 +2,7 @@
 title: "轻量消息总线与三层架构"
 published: 2026-07-26
 pinned: false
-description: "ROS2 pub/sub 上手、RC 赛场瓶颈、自研消息总线的取舍、三层解耦架构设计。"
+description: "ROS2 pub/sub 机制、复杂决策下的回调卡死痛点、ROS2 与 asyncio 双线程桥接架构、赛场热重置机制与三层解耦设计。"
 tags: [ros2, pub/sub, 消息总线, 架构, asyncio, 教程]
 category: RC上位机
 licenseName: "CC BY-NC-SA 4.0"
@@ -11,241 +11,391 @@ image: ""
 draft: false
 ---
 
-> 串口协议搞定了，硬件接口也隔离好了，但上位机内部各个模块之间怎么传数据？这一章聊聊消息总线。
+> 串口协议搞定了，硬件驱动也能收发数据了。但上位机内部各个模块之间怎么传数据？当线性的比赛战术遇到异步事件时，又该怎么写才不会把节点卡死？这一章聊聊消息总线与架构桥接。
 
 # 模块之间为什么要通信？
 
-上位机不是一个 main 搞定所有事。串口驱动要收发硬件数据，决策状态机要发指令等反馈，传感器处理要跑雷达和视觉——这些东西同时在跑，还得互相传数据。串口驱动收到轮速得给决策用，决策发出速度指令得给串口驱动发出去。
+上位机不是一个 `main` 函数就能从头跑到尾的控制程序。
 
-最粗暴的做法是直接函数调用，但模块跑在不同线程甚至不同进程里，直接调不是锁死就是压根调不到。所以得有个中间人帮忙转发，这东西就叫消息总线。
+在真实的机器人系统里，多个任务是同时在运转的：
+- **串口驱动节点**：以高频率接收下位机的数据包，解包后把里程计与机构状态发出来；同时等待上层的控制指令发往下位机。
+- **定位与感知节点**：处理激光雷达、双目相机或 UWB 传感器，实时计算机器人在场地上的绝对坐标。
+- **决策调度节点**：根据赛场局势，决定现在是去取物块、还是去发射区、还是避障，并协调各个机构执行动作。
+
+最粗暴的做法是把所有东西塞进一个大进程里直接调函数，但很快你就会发现：雷达算一帧点云要 30ms，串口接收要求毫秒级响应，直接函数调用不是把线程卡死，就是多线程共享内存被数据踩烂。
+
+因此，模块与模块之间必须解耦，通过**消息总线（Message Bus）**来交换数据。
 
 ---
 
-# ROS2 Pub/Sub
+# ROS 2 Pub/Sub 机制
 
-2026 年做 RC 上位机的人大概率绕不开 ROS2。它继承了 ROS 1 十几年的生态，DDS 通信、节点管理、参数系统一应俱全，行业里的 SLAM、导航、视觉方案几乎都挂在上面。可以说 ROS2 就是机器人软件的事实标准。
+在当前的机器人技术生态里，ROS 2 是事实上的工业标准。它底层依赖 DDS（数据分发服务），提供了跨进程、跨机器的消息发布与订阅能力。
 
-但 RC 赛场不是工厂车间。一辆竞速赛车的上位机可能只需要串口驱动、一个决策状态机、一套 Pure Pursuit——总共三四个节点，跑在一台 Jetson 上，通信频率不过 50Hz。为这几个节点装一整套 ROS2 + DDS，就像为了喝杯水去建自来水厂。能喝到水吗？能。值不值是另一回事。
+## 核心模型：发布者与订阅者互不相识
 
-先不管值不值，ROS2 的 pub/sub 得会用，因为很多现成的东西（串口驱动、雷达驱动、定位算法）都挂在 ROS2 上。
+ROS 2 的核心通信逻辑非常简单：**发布者往 Topic 扔消息，订阅者从 Topic 捡消息**。双方不需要知道对方的 IP 地址、进程 ID，甚至不需要知道对方是否存在。
 
-## 跑通一个最小示例
-
-ROS2 的核心模型就一句话：发布者往 Topic 扔消息，订阅者从 Topic 捡消息，两边互不认识。
-
-**发布者：**
+**发布者（Talker 示例）：**
 
 ```python
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String
+from geometry_msgs.msg import Twist
 
-class Talker(Node):
+class CmdVelPublisher(Node):
     def __init__(self):
-        super().__init__('talker')
-        self.pub = self.create_publisher(String, '/chatter', 10)
-        self.timer = self.create_timer(1.0, self.tick)
+        super().__init__('cmd_vel_publisher')
+        self.pub = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.timer = self.create_timer(0.05, self.on_timer)  # 20Hz 发送速度
 
-    def tick(self):
-        msg = String()
-        msg.data = 'hello'
+    def on_timer(self):
+        msg = Twist()
+        msg.linear.x = 1.0  # 前进速度 1.0 m/s
+        msg.angular.z = 0.0
         self.pub.publish(msg)
 
-rclpy.init()
-rclpy.spin(Talker())
+def main():
+    rclpy.init()
+    rclpy.spin(CmdVelPublisher())
+    rclpy.shutdown()
 ```
 
-**订阅者：**
+**订阅者（Listener 示例）：**
 
 ```python
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String
+from geometry_msgs.msg import Twist
 
-class Listener(Node):
+class CmdVelListener(Node):
     def __init__(self):
-        super().__init__('listener')
-        self.create_subscription(String, '/chatter', self.on_msg, 10)
+        super().__init__('cmd_vel_listener')
+        self.sub = self.create_subscription(Twist, '/cmd_vel', self.on_cmd_vel, 10)
 
-    def on_msg(self, msg):
-        self.get_logger().info(f'Received: {msg.data}')
+    def on_cmd_vel(self, msg: Twist):
+        self.get_logger().info(f"收到速度指令: vx={msg.linear.x:.2f}, wz={msg.angular.z:.2f}")
 
-rclpy.init()
-rclpy.spin(Listener())
+def main():
+    rclpy.init()
+    rclpy.spin(CmdVelListener())
+    rclpy.shutdown()
 ```
 
-两个终端各跑一个，能看到消息收发就说明跑通了。
+启动两个独立终端分别运行，就能看到速度指令顺畅地跨进程传输。
 
-## 自定义消息
+## QoS 策略：传感器与指令不能一视同仁
 
-`String`、`Twist` 这些标准消息不够用的时候要自定义。在 ROS2 包里建一个 `msg/Command.msg`：
+ROS 2 引入了 QoS（服务质量）配置。在 Robocon 赛场上，你最需要区分两种通信场景：
 
-```
-float32 x
-float32 y
-float32 yaw
-int32 stair
-int32 block
-int32 spearhead
-int32 area
-```
-
-CMakeLists.txt 加上消息生成的配置，编译一下就能用了。具体怎么配网上到处都是，不展开了。
-
-## QoS：传感器和指令不能一视同仁
-
-ROS2 的 Topic 有 QoS 策略，控制消息的可靠性。传感器数据用 `BEST_EFFORT`——丢了下一帧还有，要的是快；控制指令用 `RELIABLE`——丢了车就飞，要的是稳。
-
-> 我 26 赛季的分法：轮速、雷达、里程计全 BEST_EFFORT，/command 和 /decision 用 RELIABLE。传感器丢一帧还行，指令丢了车动都不动。
-
-## 我项目里的实际架构
-
-我的系统是 C++ 串口驱动 + Python 决策，两个独立进程，靠 ROS2 topic 通信：
-
-```
-┌─────────────────┐     /command      ┌──────────────────┐
-│  C++ 串口驱动    │ ←───────────────  │  Python 决策节点   │
-│                 │  /decision       │  async/await 决策 │
-│                 │ ─────────────→    │                  │
-└─────────────────┘                   └──────────────────┘
-```
-
-C++ 端串口收到下位机的反馈帧，解析完发到 `/decision`；Python 端订阅，收到后唤醒对应的协程。反过来 Python 决策发出的速度指令发到 `/command`，C++ 端订阅后通过串口发给电控。
+| 数据类型 | 典型话题 | QoS 建议 | 核心考量 |
+|---|---|---|---|
+| **高频传感器流** | `/odom`, `/scan`, `/camera/pose` | `BEST_EFFORT`（尽力而为） | 丢了一帧无所谓，下一帧毫秒级就到；最怕网络排队导致读到几百毫秒前的历史旧帧。 |
+| **控制与状态确认** | `/cmd_vel`, `/robot/gripper_cmd`, `/robot/nav_reached` | `RELIABLE`（可靠交付） | 抓取、投掷指令绝不能丢，丢一帧机器人就可能停在原地发呆甚至失控。 |
 
 ```python
-# 订阅 /decision，收到后触发事件唤醒协程
-self.create_subscription(Ack, '/decision', self.act.on_upper_ack, qos)
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
-def on_upper_ack(self, msg):
-    if msg.up_free == 2:
-        self.post_event(Event("ARM_DONE", success=True))
+# 传感器 QoS 配置
+sensor_qos = QoSProfile(
+    reliability=ReliabilityPolicy.BEST_EFFORT,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=1
+)
+
+# 控制指令 QoS 配置
+cmd_qos = QoSProfile(
+    reliability=ReliabilityPolicy.RELIABLE,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=10
+)
 ```
-
-ROS2 本身其实就是个传话的不是吗？
 
 ---
 
-# ROS2 在 RC 赛场上的问题
+# ROS 2 在复杂决策面前的致命痛点
 
-用归用，不满意的地方也得说。
+既然 ROS 2 的 Pub/Sub 这么好用，那我们能不能直接用原生的 ROS 2 节点写整场比赛的决策呢？
 
-**启动慢。** ROS2 底层是 DDS，启动时要节点发现、Topic 匹配、QoS 协商。光 `rclpy.init()` 这一行就要几百毫秒到几秒。赛场上按完启动按钮车 2 秒后才动，这 2 秒可能就是 DDS 在握手。
+几乎所有刚入门的战队同学都会这么尝试，然后无一例外在赛前联调时遇到以下三个典型“车祸现场”。
 
-**进程内通信也要序列化。** 不管发布者和订阅者是不是在同一个进程里，消息都要走一遍序列化 → 传输 → 反序列化。一个 `{x: 1.0, y: 2.0}` 变成字节再变回来，在 50Hz 控制频率下这个开销不是理论上的，是能感知到的。
+### 痛点一：`spin()` 单线程阻塞与回调地狱
 
-**spin() 单线程，回调互相卡。** `rclpy.spin()` 默认单线程跑所有回调。视觉处理耗时 200ms 的话，这 200ms 内急停回调也收不到。我后来把决策逻辑放到单独的 asyncio 线程里才解决，但这本身就说明 ROS2 默认模型不适合实时决策——你得绕过它的限制才能用好。
+ROS 2 的 Python 节点默认由 `rclpy.spin(node)` 驱动。它是一个单线程的事件循环，所有订阅回调、定时器回调都在同一个主线程里串行排队执行。
 
-**装起来重。** 好几个 G，编译自定义消息要配 CMakeLists.txt、package.xml、setup.py。RC 赛车就那么几个 Topic，杀鸡用牛刀。
+如果你写出下面这种代码：
 
-## 什么时候还是得用 ROS2？
+```python
+# 典型车祸代码：在回调里阻塞等待
+class NaiveDecisionNode(Node):
+    def on_start_match(self, msg):
+        self.send_move_to_zone1()
+        time.sleep(3.0)  # 等待车开到 1 号区 —— 致命错误！
+        self.send_arm_grab()
+```
 
-双进程架构（C++ 驱动 + Python 决策）或者多机器架构（雷达在 Jetson，决策在 x86），ROS2 做桥接是目前最省事的。进程间通信确实需要一个管道，ROS2 帮你把序列化、断线重连、跨机器这些都封装好了，自己搞 socket 通信等于重新发明轮子。
+在这 `time.sleep(3.0)` 的 3 秒钟内，**整个节点的线程彻底被占死**。底盘反馈话题、急停话题、激光雷达里程计话题全部无法被处理。底层 DDS 接收队列瞬间积压爆仓，车子冲出赛道你都收不到报错。
 
-全 Python 单进程的话就完全没必要用 ROS2 了，下面讲的 EventBus 够用。
+为了不阻塞，有人改用状态机标志位切分回调：
+
+```python
+# 典型车祸代码 2：回调地狱与散落一地的全局标志位
+def on_nav_feedback(self, msg):
+    if self.state == State.GOING_TO_ZONE1 and msg.reached:
+        self.state = State.GRABBING
+        self.send_grab()
+    elif self.state == State.GRABBING and msg.gripper_done:
+        self.state = State.RETURNING
+        self.send_return()
+    # 随着战术增多，这里会膨胀成数百行巨型 if-else，逻辑碎片化到无法维护
+```
+
+整场 3 分钟的连贯战术，被生生撕裂成了数十个散落在不同回调里的碎片函数。想要看清楚“车到底按什么顺序走”，必须在几个文件和回调之间来回人肉跳转。
+
+### 痛点二：试图在回调里直接塞 asyncio 导致的死锁
+
+了解 Python 的同学会想到：可以用 `asyncio` 的 `async/await` 写连贯的异步代码呀！
+
+于是大家经常写出这种尝试：
+
+```python
+# 典型车祸代码 3：在 ROS 回调里混用 asyncio.run
+def on_start_button(self, msg):
+    # 直接报错: RuntimeError: This event loop is already running
+    # 或者阻塞当前 ROS spin 线程，导致外层回调再也无法触发
+    asyncio.run(self.my_mission())
+```
+
+因为 ROS 2 的 `spin()` 有自己的事件派发逻辑，而 `asyncio` 也有自己的事件循环。两者如果在同一个线程里抢夺控制权，要么抛出异常，要么直接死锁。
+
+### 痛点三：`MultiThreadedExecutor` 并不是万能药
+
+ROS 2 官方提供了多线程执行器 `MultiThreadedExecutor`，允许多个回调在线程池中并发执行。但这只解决了“并发处理回调”，并没有解决“长流程任务调度”。
+
+如果要在不同回调线程之间等待彼此的结果，你就必须手动编写 `threading.Event`、`Condition` 或各种加锁机制。一旦赛场出现网络抖动或丢包，锁没释放，整车直接假死在场地上。
 
 ---
 
-# 自研 EventBus
+# 核心方案：ROS 2 + asyncio 双线程桥接架构
 
-很多人（包括我之前）都想：ROS2 太重了，我自己写个 pub/sub 不就行了？
+为了彻底解决“既要 ROS 2 的跨进程通信能力，又要 Python 协程线性的任务表达能力”，`robocon-fsm` 采用了**双线程解耦桥接架构**。
 
-核心逻辑确实不复杂。C++ 版用模板和 `std::any` 实现类型擦除，让一个 EventBus 能传任意类型的数据，不用像 ROS2 那样提前定义 .msg 文件：
-
-```cpp
-class EventBus {
-    // type_index → [回调列表]，用类型索引区分不同消息
-    std::unordered_map<std::type_index,
-        std::vector<std::function<void(const std::any&)>>> subs_;
-    std::mutex mtx_;
-
-public:
-    template<typename T>
-    void subscribe(const std::string& topic, std::function<void(const T&)> cb) {
-        std::lock_guard<std::mutex> lock(mtx_);
-        subs_[std::type_index(typeid(T))].push_back(
-            [cb](const std::any& data) { cb(std::any_cast<T>(data)); });
-    }
-
-    template<typename T>
-    void publish(const std::string& topic, const T& data) {
-        std::lock_guard<std::mutex> lock(mtx_);
-        for (auto& cb : subs_[std::type_index(typeid(T))])
-            cb(data);
-    }
-};
+```
+┌───────────────────────────────┐
+│                     ROS 2 决策节点进程                       │
+│                                                              │
+│  【线程 1: ROS 2 主线程】            【线程 2: 决策协程线程】│
+│                                                              │
+│   MultiThreadedExecutor               asyncio Event Loop     │
+│            │                                   │           │
+│       rclpy.spin()                      loop.run_forever()   │
+│            │                                   │           │
+│     收到 ROS Topic 回调                  执行 run_mission()  │
+│            │                                   │           │
+│   actions.post_event()                          │           │
+│            │   call_soon_threadsafe()          │           │
+│            └─────────────► 唤醒挂起的 Future  │
+│                                                 │           │
+│                                        await fsm.wait_event()│
+│                                                 │           │
+│   直接发布 ROS 话题 (底层 C++ 线程安全)         │           │
+│             ◄─────────────────┘           │
+│   actions.send_navigate()                                    │
+└───────────────────────────────┘
 ```
 
-`std::any` 能装任意类型的值，`std::type_index` 给每个类型一个唯一的 key，这样同一个 EventBus 实例既能传 `WheelSpeed` 又能传 `Command`，编译期就做类型检查，传错类型直接抛异常。
+这个架构的分工极其清晰：
 
-用起来就两行：
+1. **线程 1（ROS 2 主线程）**：跑 `MultiThreadedExecutor`。它是一个被动响应式的“外壳”，只负责接收传感器和底层反馈话题。任何回调里绝不包含耗时逻辑，收到数据后只做解析并向状态机投递事件。
+2. **线程 2（`DecisionWorker` 协程线程）**：跑独立的 `asyncio` 事件循环。全场战术流程 `async def run_mission()` 运行在这个线程中。你可以自由使用 `await fsm.wait_event(...)`，代码完全是线性的，挂起等待时绝不阻塞任何 ROS 2 回调。
 
-```cpp
-EventBus bus;
-bus.subscribe<WheelSpeed>("/wheel_speed", [](const auto& msg) {
-    std::cout << msg.left << ", " << msg.right << std::endl;
-});
-bus.publish("/wheel_speed", WheelSpeed{1.0, 1.2});
-```
+### 跨线程桥梁的灵魂：`call_soon_threadsafe`
 
-Python 版更简单，一个字典加一个回调列表：
+在两个线程之间传递数据，安全性是第一原则：
 
-```python
-class EventBus:
-    def __init__(self):
-        self._subs = {}
+- **从 ROS 2 到 asyncio（消息转事件）**：
+  当 ROS 2 订阅收到 `/robot/nav_reached` 时，回调函数调用 `post_event("NAV_DONE")`。在 FSM 内部：
+  ```python
+  if self._loop.is_running():
+      self._loop.call_soon_threadsafe(self._dispatch_event, ev)
+  ```
+  `call_soon_threadsafe` 是 Python 标准库提供的线程安全投递原语。它直接向目标事件循环投递任务，由目标线程的 loop 在下一个 tick 安全执行，唤醒正在等待该事件的 `Future`。**微秒级延迟，且完全不需要业务层手动加互斥锁。**
 
-    def subscribe(self, topic, callback):
-        self._subs.setdefault(topic, []).append(callback)
-
-    def publish(self, topic, data=None):
-        for cb in self._subs.get(topic, []):
-            cb(data)
-```
-
-但实际用起来有几个坑：
-
-**C++ 和 Python 不共享内存。** 我的系统是两个进程，EventBus 在一个进程里创建，另一个进程根本访问不到。进程间通信还是得靠 ROS2、ZeroMQ 或者自己写 socket。ROS2 虽然重，但它帮你把这些都封装好了。
-
-**多线程要加锁。** 串口驱动在自己的线程里 publish，决策在 asyncio 线程里 subscribe，不加锁的话回调列表会被踩坏。上面 C++ 版用了 `std::mutex`，但锁的粒度要控制好——锁太大了 publish 和 subscribe 互相等，锁太小了保护不住。
-
-**背压策略要自己想。** 发布者 100Hz 往 Topic 扔数据，订阅者处理一帧要 30ms，队列满了怎么办？ROS2 的 QoS 帮你处理了这些，自己写的话每种策略都要自己实现。
+- **从 asyncio 到 ROS 2（动作指令下发）**：
+  协程在执行 `act.send_navigate(x, y)` 时，直接调用 ROS 2 Publisher 的 `publish()` 方法。ROS 2 底层是由 C/C++ 实现的 DDS 接口，`publish` 本身就是线程安全的，因此协程线程可以直接下发，立刻发出网络报文。
 
 ---
 
-# 三层架构
+# 实战代码：从基类到全场装配
 
-不管用什么通信方式，上位机的分层是一样的。26 赛季踩了不少坑才搞清楚这件事。
+在 `robocon-fsm` 中，这个双线程架构被提炼为可复用的基类 `Ros2DecisionNodeBase`。
 
-```
-决策调度层    状态机 / 任务规划 / 路线选择
-  ↑ 只管"做什么"
-控制跟踪层    Pure Pursuit / 运动学解算 / PID
-  ↑ 只管"怎么走"
-感知驱动层    串口驱动 / 雷达 / 视觉 / DT35
-  只管"提供干净数据"
-```
-
-就和我们常说的“高内聚，低耦合”一样，各层之间通过消息总线传数据，不直接调用。感知层不知道决策层在干什么，决策层不知道串口协议长什么样。
-
-为什么要分这么清楚？因为**需求变的频率不一样**。感知层的协议定了基本不动，除非换硬件；控制层调完参数基本不动，除非换底盘；但决策层——比赛前一天要改流程的话，你就得改。如果决策代码里混着串口收发逻辑，改流程的时候一不小心把协议改了，车直接寄。
-
-拿"走到 1 号点然后抓块"这个流程举个例：
+### 1. 核心基类实现 (`node_base.py`)
 
 ```python
-async def zone1(fsm, act, cfg, state):
-    await fsm.nav_to(1.0, 2.0)        # 走
-    await fsm.spearhead_and_wait(1)    # 抓
-    await fsm.rotate_to(0.0, 0.7, π)  # 转
+import asyncio
+import threading
+from typing import Optional
+import rclpy
+from rclpy.node import Node
+from rclpy.executors import MultiThreadedExecutor
+
+from robocon_fsm.core.fsm import FSM
+from robocon_fsm.core.context import Blackboard
+
+class Ros2DecisionNodeBase(Node):
+    def __init__(self, node_name: str = "decision_node"):
+        super().__init__(node_name)
+
+        self.fsm = FSM()
+        self.blackboard = Blackboard()
+        self.act = None
+
+        # 创建独立的 asyncio 事件循环并注入状态机
+        self._loop = asyncio.new_event_loop()
+        self.fsm.set_loop(self._loop)
+        self._decision_thread: Optional[threading.Thread] = None
+        self._current_task: Optional[asyncio.Task] = None
+
+    def set_action_dispatcher(self, action_dispatcher):
+        self.act = action_dispatcher
+        self.act.bind_fsm(self.fsm)
+
+    def start_decision(self):
+        """在独立后台线程中启动 asyncio 事件循环"""
+        def _run_loop():
+            asyncio.set_event_loop(self._loop)
+            self._current_task = self._loop.create_task(self._safe_run_mission())
+            self._loop.run_forever()
+
+        self._decision_thread = threading.Thread(
+            target=_run_loop, daemon=True, name="DecisionWorker"
+        )
+        self._decision_thread.start()
+
+    async def _safe_run_mission(self):
+        try:
+            await self.run_mission()
+        except asyncio.CancelledError:
+            self.get_logger().info("决策任务已被取消或重置")
+        except Exception as e:
+            self.get_logger().error(f"决策任务未捕获异常: {e}", exc_info=True)
+
+    async def run_mission(self):
+        """虚方法：由队伍子类实现具体的比赛全流程"""
+        raise NotImplementedError
 ```
 
-决策层不知道 Pure Pursuit 怎么算的，不知道串口发了什么字节，它只管 `nav_to` → 等事件 → 下一步。底下发生了什么是感知层和控制层的事。
+### 2. 赛场救命神器：`reset_mission` 免杀进程热重置
+
+在 Robocon 3 分钟的正式比赛中，如果小车中途卡住或发生意外，规则通常允许操作手向裁判举手申请“重试”（Retry），并将小车抱回起跑区重新出发。
+
+如果你采用传统的“Ctrl+C 杀掉所有节点再 ros2 launch”方案：
+1. DDS 节点重新发现与话题匹配需要 2~3 秒；
+2. 串口设备文件可能由于旧进程未完全释放而报 `Device or resource busy`；
+3. 比赛时间分秒必争，重启失败往往直接导致比赛零分。
+
+而在双线程架构下，我们设计了**免杀进程热重置机制**：
+
+```python
+    def reset_mission(self) -> None:
+        """赛场免杀进程热重置"""
+        self.get_logger().warn(">>> [RESET] 触发任务热重置，正在归位状态机...")
+        
+        # 1. 立即给硬件下发急停，切断底盘与机械臂动作
+        if self.act is not None:
+            self.act.emergency_stop()
+
+        # 2. 跨线程重置 asyncio 任务
+        def _do_reset():
+            self.fsm.clear()  # 拔掉所有挂起的等待 Future，防止旧事件唤醒新流程
+            if self._current_task and not self._current_task.done():
+                self._current_task.cancel()  # 取消正在执行的旧任务
+            self._current_task = self._loop.create_task(self._safe_run_mission())
+
+        if self._loop.is_running():
+            self._loop.call_soon_threadsafe(_do_reset)
+```
+
+操作手只需要在遥控器上按一下按键，或者外部发一个 `/competition/reset` 话题：
+- 节点进程不退出；
+- 串口和雷达连接不中断；
+- **直接取消旧协程、清空等待队列、重新拉起起跑流程**。小车放回起跑区就能直接开始第二轮冲刺！
+
+---
+
+# 三层解耦架构与工程组织
+
+有了坚固的消息总线与双线程底座，整个上位机工程该如何分层组织？
+
+我们在真实比赛项目中推行**三层解耦架构**：
+
+```
+┌───────────────────────────────┐
+│  【决策调度层】 (my_decision.py)                             │
+│  - 只管“做什么”                                            │
+│  - 纯线性 async 流程，没有任何 ROS 话题细节                  │
+│  - 如：await act.navigate(1.0, 2.0); await act.grab_ring()   │
+├───────────────────────────────┤
+│  【控制与动作分发层】 (my_actions.py)                        │
+│  - 负责“怎么做”与软硬件协议翻译                            │
+│  - 下发时：将高层语义动作转化为 ROS 话题发布 (/goal_pose 等) │
+│  - 反馈时：监听 ROS 话题并将消息转化为状态机事件 post_event  │
+├───────────────────────────────┤
+│  【感知与底层驱动层】 (serial_driver_node.py, perception 等) │
+│  - 只管“提供干净可靠的 ROS 话题数据”                       │
+│  - 屏蔽串口 CRC、波特率、雷达点云滤波细节                    │
+└───────────────────────────────┘
+```
+
+### 为什么是“分文件而非分人”？
+
+很多软件工程教科书说“分层是为了方便不同小组分工合作”。但在现实的 Robocon 战队中，根本不可能有机械电控的同学来给你写上位机代码，**整个上位机通常就是你一个人（或者两名上位机同学）全权负责**。
+
+分层的真正价值在于：**把变更频率不同的模块做物理隔离**。
+
+- **感知驱动层（协议）**：开赛前两三个月把通信协议定好后，硬件不改基本不动。
+- **动作分发层（动作）**：底盘与机械臂动作调稳后，几周不动一次。
+- **决策调度层（战术）**：比赛前一天晚上、甚至预选赛每一场之间，都在根据对手的积分战术调整路线和取物顺序。
+
+通过将它们拆分成独立文件（`my_decision.py`、`my_actions.py`、`main_node.py`）：
+你可以在赛场备赛区疯狂修改战术流程，随心所欲调换取物顺序，而**完全不需要触碰串口收发、ROS 回调注册或节点生命周期的任何一行代码**。改完按一下保存，小车就能按全新战术出发，绝不会发生“改了战术导致串口驱动崩掉”的低级错误。
+
+### 现场战术代码写起来有多爽？
+
+看看在 `my_decision.py` 中写全场战术的实际体验：
+
+```python
+async def run_mission(fsm, act, bb):
+    # 1. 驶向取球区
+    act.send_navigate(bb.loading_pos_x, bb.loading_pos_y)
+    await fsm.wait_event("NAV_DONE", timeout=5.0)
+
+    # 2. 机械臂抓球并等待电控确认
+    act.send_gripper_command(1)  # 1: 抓取
+    await fsm.wait_event(
+        lambda e: e.type == "GRIPPER_DONE" and e.data.get("command") == 1,
+        timeout=2.0
+    )
+
+    # 3. 驶向发射区投掷
+    act.send_navigate(bb.scoring_pos_x, bb.scoring_pos_y)
+    await fsm.wait_event("NAV_DONE", timeout=6.0)
+    
+    act.send_shoot_command()
+    await fsm.wait_event("SHOOT_DONE", timeout=1.5)
+```
+
+没有杂乱的嵌套回调，没有成堆的全局状态变量。整场比赛的执行逻辑一目了然，这才是适合竞赛高压环境的上位机代码形态。
 
 ---
 
 # 小结
 
-ROS2 做 pub/sub 能用，但启动慢、序列化开销、spin 单线程这些问题是实际存在的。自研 EventBus 理论上简单，实际有跨进程、线程安全、背压等坑，全 Python 单进程可以搞，双进程老实用 ROS2 或 ZeroMQ。
+1. **ROS 2 的定位是进程间管道**：它负责跨进程、跨机器的数据搬运，以及与现成生态（如激光雷达、Nav2）互通。
+2. **拒绝在 ROS 回调中阻塞**：单线程 `spin()` 下的 `time.sleep` 会直接卡死整个节点，而回调地狱会导致逻辑严重碎片化。
+3. **双线程桥接是最佳实践**：ROS 2 主线程处理话题收发，独立后台线程运行 asyncio 事件循环，利用 `call_soon_threadsafe` 实现无锁、微秒级跨线程事件唤醒。
+4. **赛场热重置至关重要**：通过 `reset_mission`，在无需重启节点和断开串口的前提下，0.05 秒完成全场状态归位与任务重拉。
+5. **分层分文件保证战术安全**：将高频变更的决策逻辑（`my_decision.py`）与低频稳定的动作和驱动物理隔离，保证赛场调车时改战术不崩底座。
 
-三层架构的核心价值不是"代码好看"，是把变化频率不同的东西隔开——改决策不动控制，改控制不动感知。比赛前一天改方案的时候你会感谢这个分层。
-
-下一章讲感知层——定位和视觉，搞清楚数据从哪来、什么质量。
+下一章，我们深入感知层——搞定轮式里程计、激光雷达与视觉流水线，看看上层决策需要的干净位姿数据到底是从哪里算出来的。

@@ -183,475 +183,330 @@ void protocol_verify(SerialPort& serial) {
 
 ---
 
-# 帧协议设计
+# 帧协议设计：实战中的双向帧结构
 
-## 为什么需要帧头和帧尾？
+## 为什么需要双向区分帧头？
 
-既然串口是无边界的字节流，那我们就要自己划边界。最经典的做法：**帧头 + 数据 + 帧尾**。
+既然串口是无边界的字节流，那我们就要自己划定消息边界。最经典的做法是定长包 + 帧头 + 校验码。
 
-```
-┌────────┬────────┬────────┬──────────┬──────────┐
-│ 帧头   │ 命令字 │ 长度   │ 数据     │ CRC 校验 │
-│ 0xAA   │ 1 byte │ 1 byte │ N bytes  │ 2 bytes  │
-└────────┴────────┴────────┴──────────┴──────────┘
-```
+但在 RC 赛场上，通信是**双向全双工（或者半双工 RS485）**的：
+* 上位机往电控发：目标位置、底盘速度、机械臂动作；
+* 电控往上位机回：当前位姿、到位状态、微动开关、传感器反馈。
 
-- **帧头（0xAA）**：标记一条消息的开始。接收方逐字节扫描，看到 0xAA 就知道"一帧来了"
-- **命令字**：区分不同类型的消息（速度指令、状态查询、急停……）
-- **长度**：数据区有多少字节，接收方知道该读多少
-- **数据**：实际内容，比如底盘速度、轮速反馈
-- **CRC 校验**：数据在传输过程中有没有出错
+如果两边都用一模一样的帧头（比如都是 `0xAA 0x55`），在某些接线（比如短接测试、或者 485 总线带回显）时，上位机很容易把**自己刚发出去的数据当成下位机的回包**收进来解析，导致状态彻底错乱。
 
-## 帧头怎么选？
-
-帧头不能太简单，否则数据区里碰巧出现同样的字节就会误判。
+所以更成熟的工程做法是**区分上下行帧头**：
 
 ```cpp
-// 帧头设计原则：选一个数据区里不太可能出现的值
-constexpr uint8_t FRAME_HEADER = 0xAA;
-constexpr uint8_t FRAME_TAIL   = 0x55;
-
-// 更稳妥的做法：用两个字节做帧头，误判概率降到 1/65536
-constexpr uint8_t HEADER[] = {0xAA, 0x55};
+constexpr uint8_t FRAME_HEADER_0   = 0xAA; // 引导字节
+constexpr uint8_t FRAME_HEADER_CMD = 0x55; // 上位机 -> 下位机 指令帧
+constexpr uint8_t FRAME_HEADER_ACK = 0x56; // 下位机 -> 上位机 确认/状态帧
 ```
-
-> 如果你的数据区会传任意二进制数据（比如摄像头图像），帧头误判概率会升高。这时候就要靠**转义机制**或**长度字段**来兜底——读完长度字段指定的字节数后，紧接着的两个字节必须是 CRC，对不上就丢弃这帧。
+* 上位机发送帧头以 `0xAA 0x55` 开头；
+* 下位机回传帧头以 `0xAA 0x56` 开头；
+彼此泾渭分明，接收端扫描帧头时一眼就能过滤掉无关数据。
 
 ---
 
-# CRC 校验：数据有没有出错
+# CRC-16 校验：查表法与快速计算
 
 ## 什么是 CRC？
+CRC（Cyclic Redundancy Check，循环冗余校验）就是对一帧数据算一个“指纹”。发送方算好附在帧尾，接收方收到后重新算一遍，对得上说明数据在电磁干扰严重的车载环境中没有误码，对不上就直接丢弃。
 
-CRC（Cyclic Redundancy Check，循环冗余校验）就是对一帧数据算一个"指纹"。发送方算好附在帧尾，接收方收到后重新算一遍，对得上说明数据没坏，对不上就丢弃。
+赛场环境电机启停时干扰极重，绝对不要用简单的校验和（Checksum 累加和），累加和只能防简单的丢字节，防不住突发误码。**Modbus CRC-16 (多项式 0xA001)** 是 RC 上位机与单片机通信的标准答案。
 
-```
-发送方：数据 → CRC 计算 → 附在帧尾 → 发出去
-接收方：收到数据 → 重新算 CRC → 和帧尾的 CRC 对比
-  匹配 → 数据有效
-  不匹配 → 丢弃，等下一帧
-```
+## 查表法实现（比位移循环快得多）
 
-## CRC-16 实现
-
-RC 赛场上 CRC-16 够用了。这里给一个可以直接抄的实现：
+位移法每个字节都要跑 8 次循环计算，在嵌入式或高频通信中会有不必要的开销。工业上最常用的做法是**预置 256 字节查找表（Table-driven CRC16）**，每个字节只需一次异或和查表：
 
 ```cpp
+// crc.hpp
+#ifndef ROBOT_SERIAL__CRC_HPP_
+#define ROBOT_SERIAL__CRC_HPP_
+
 #include <cstdint>
 #include <cstddef>
 
-uint16_t crc16(const uint8_t* data, size_t length) {
-    uint16_t crc = 0xFFFF;  // 初始值
-    for (size_t i = 0; i < length; i++) {
-        crc ^= data[i];
-        for (int j = 0; j < 8; j++) {
-            if (crc & 0x0001)
-                crc = (crc >> 1) ^ 0xA001;  // 多项式
-            else
-                crc >>= 1;
-        }
-    }
-    return crc;
-}
-```
+namespace robot_serial
+{
+class CRC16
+{
+public:
+  // 计算给定缓冲区的 CRC16 (Modbus)
+  static uint16_t calcCRC16(const uint8_t * data, size_t length);
 
-用法：
+private:
+  static const uint16_t tableCRC16[256];
+};
+}  // namespace robot_serial
+
+#endif
+```
 
 ```cpp
-// 假设要发送的数据是 {0x01, 0x02, 0x03}
-uint8_t payload[] = {0x01, 0x02, 0x03};
-uint16_t checksum = crc16(payload, sizeof(payload));
+// crc.cpp
+#include "robot_serial/crc.hpp"
 
-// checksum 的低字节和高字节分别附在帧尾
-uint8_t crc_lo = checksum & 0xFF;
-uint8_t crc_hi = (checksum >> 8) & 0xFF;
+namespace robot_serial
+{
+const uint16_t CRC16::tableCRC16[256] = {
+  0x0000, 0xC0C1, 0xC181, 0x0140, 0xC301, 0x03C0, 0x0280, 0xC241,
+  0xC601, 0x06C0, 0x0780, 0xC741, 0x0500, 0xC5C1, 0xC481, 0x0440,
+  0xCC01, 0x0CC0, 0x0D80, 0xCD41, 0x0F00, 0xCFC1, 0xCE81, 0x0E40,
+  0x0A00, 0xCAC1, 0xCB81, 0x0B40, 0xC901, 0x09C0, 0x0880, 0xC841,
+  // ... 完整 256 项预置表
+};
+
+uint16_t CRC16::calcCRC16(const uint8_t * data, size_t length)
+{
+  uint16_t crc = 0xFFFF;
+  for (size_t i = 0; i < length; ++i) {
+    uint8_t table_index = (crc ^ data[i]) & 0xFF;
+    crc = (crc >> 8) ^ tableCRC16[table_index];
+  }
+  return crc;
+}
+}
 ```
-
-> CRC 的多项式有很多种，RC 赛场上用 Modbus 那个（0xA001）就行，上位机和电控约定好同一个即可。
+不管是单片机端还是工控机端，都可以用同一张查找表，计算极其高效。
 
 ---
 
-# 内存对齐与高效编解码
+# 内存对齐与数据包结构体（robot_serial 实战）
 
-## 为什么不能直接把结构体发出去？
+## 为什么不能直接发结构体？
 
-很多人会想：既然上位机和下位机都是 C/C++，直接把结构体通过串口发不就行了？
+在 C/C++ 编程中，很多人图省事想直接 `write((uint8_t*)&cmd, sizeof(cmd))` 把结构体扔进串口。
 
-```cpp
-// ❌ 千万别这么干
-struct SpeedCmd {
-    float linear;   // 4 bytes
-    float angular;  // 4 bytes
-};
+**千万别信编译器默认的内存排布！**  
+编译器为了 CPU 寻址效率，会在结构体成员之间偷偷插入“填充字节（Padding）”。你电脑上编译出来可能是 24 字节，STM32 用 Keil/GCC 编译出来可能是 28 字节，只要两端对齐策略稍有差异，浮点数的字节位置全部错开，解析出来的数值就是天文数字。
 
-SpeedCmd cmd{1.0, 0.5};
-serial.write((uint8_t*)&cmd, sizeof(cmd));  // 危险！
-```
+## #pragma pack(push, 1)：紧凑打包
 
-问题在于**内存对齐**。编译器为了访问效率，会在结构体成员之间插入填充字节：
+解决办法是用预编译指令告诉编译器：**禁止任何内存填充，全部按 1 字节紧凑对齐**。
 
-```
-// 不加控制，编译器可能这样排列：
-struct SpeedCmd {
-    float linear;   // 4 bytes
-    // ← 编译器插入 4 bytes 填充（取决于平台）
-    float angular;  // 4 bytes
-};
-// sizeof = 12，而不是 8
-```
-
-而且不同平台（x86 vs ARM）、不同编译器（GCC vs MSVC）的对齐策略可能不一样。你电脑上 sizeof 是 8，Jetson 上可能就是 12，数据直接乱套。
-
-## #pragma pack(1)：禁用对齐填充
+看看我们在 `robot_serial/packet.hpp` 中真正使用的完整通信协议包：
 
 ```cpp
-#pragma pack(push, 1)  // 告诉编译器：按 1 字节对齐，不要插填充
-struct SpeedCmd {
-    uint8_t header;    // 1 byte
-    float   linear;    // 4 bytes
-    float   angular;   // 4 bytes
-    uint16_t crc;      // 2 bytes
-};
-#pragma pack(pop)      // 恢复默认对齐
+#pragma pack(push, 1)
 
-static_assert(sizeof(SpeedCmd) == 11, "结构体大小必须是 11 字节");
+/**
+ * @brief 上位机 -> 下位机 发送数据包
+ */
+struct SendPacket
+{
+  uint8_t header[2] = {0xAA, 0x55}; // 帧头
+
+  // 当前机器人在场地上的雷达/里程计位姿 (供下位机闭环跟踪与校准)
+  float current_x = 0.0f;
+  float current_y = 0.0f;
+  float current_yaw = 0.0f;
+
+  // 导航目标位姿
+  float target_x = 0.0f;
+  float target_y = 0.0f;
+  float target_yaw = 0.0f;
+
+  // 通用机构控制指令
+  uint8_t action_code = 0;   // 动作码 (1: 张开, 2: 闭合, 3: 升降...)
+  uint32_t action_data = 0;  // 动作参数 (目标高度/力度/延时等)
+
+  // 校验码 (CRC16)
+  uint16_t checksum = 0;
+};
+
+/**
+ * @brief 下位机 -> 上位机 回传数据包
+ */
+struct ReceivePacket
+{
+  uint8_t header[2];       // 应匹配 {0xAA, 0x56}
+  uint8_t last_cmd_code;   // 响应的功能码
+  uint8_t status;          // 0: IDLE, 1: RUNNING, 2: DONE, 3: ERROR
+  uint16_t status_flags;   // 传感器状态与微动开关掩码
+  float feedback_data;     // 传感器测距/速度/位置反馈
+  uint16_t checksum;       // 校验码 (CRC16)
+};
+
+#pragma pack(pop)
 ```
 
-> `static_assert` 是断言，如果编译器偷偷塞了填充字节，编译阶段就会报错，而不是到赛场上才发现数据对不上。
-
-## 打包与解包
-
-有了 pack 结构体，收发就很直接：
+通过紧凑对齐后，数据包不仅长度完全固定，而且可以通过 `memcpy` 安全地在字节流和结构体之间相互转化：
 
 ```cpp
-// 打包：结构体 → 字节数组 → 发送
-SpeedCmd cmd;
-cmd.header = 0xAA;
-cmd.linear = 1.0f;
-cmd.angular = 0.5f;
-cmd.crc = crc16((uint8_t*)&cmd, sizeof(cmd) - 2);  // CRC 不包含自身
+// 序列化打包
+inline std::vector<uint8_t> serializePacket(SendPacket & pkt)
+{
+  // 计算校验码（不包含 checksum 本身）
+  pkt.checksum = CRC16::calcCRC16(
+    reinterpret_cast<const uint8_t *>(&pkt),
+    sizeof(SendPacket) - sizeof(uint16_t));
 
-serial.write((uint8_t*)&cmd, sizeof(cmd));
+  std::vector<uint8_t> buffer(sizeof(SendPacket));
+  std::memcpy(buffer.data(), &pkt, sizeof(SendPacket));
+  return buffer;
+}
 
-// 解包：收到字节流 → 找到帧头 → 拷贝到结构体 → 校验 CRC
-SpeedCmd received;
-memcpy(&received, buffer + frame_start, sizeof(SpeedCmd));
+// 反序列化解包
+inline bool parseReceivePacket(const uint8_t * data, size_t length, ReceivePacket & out_pkt)
+{
+  if (length < sizeof(ReceivePacket)) {
+    return false;
+  }
+  std::memcpy(&out_pkt, data, sizeof(ReceivePacket));
 
-if (received.crc != crc16((uint8_t*)&received, sizeof(SpeedCmd) - 2)) {
-    // CRC 校验失败，丢弃
+  // 验证 CRC16
+  uint16_t expected_crc = CRC16::calcCRC16(data, sizeof(ReceivePacket) - sizeof(uint16_t));
+  return out_pkt.checksum == expected_crc;
+}
+```
+
+---
+
+# 硬件解耦的终局：把串口封死在 ROS 2 驱动节点里
+
+在传统单体代码里，很多新手喜欢在决策函数里直接调串口 `serial.write()`。这会导致代码一旦换硬件就全部推倒重来，而且完全无法单测。
+
+在现代 ROS 2 机器人架构中，**ROS 2 话题就是最天然、最坚固的物理隔离墙**。
+
+我们写一个专门的驱动节点 `SerialDriverNode`（即 `src/robot_serial` 包）：
+
+```
+[上层战术决策] ──(/command)──► ┌───────────────────┐ ──(SendPacket)──► [电控单片机]
+                                    │         SerialDriverNode             │
+[上层定位系统] ──(/odometry)─►  │ - 定时把最新位姿与指令打包发送给串口 │ ◄─(ReceivePacket)─ [传感器反馈]
+                                    │ - 后台独立线程读取字节流并做 CRC 校验│
+                                    └───────────────────┘
+                                                  │
+                                                  └──(/robot_status)──► [上层战术决策]
+```
+
+### 1. 发送逻辑：定时把数据包发出去
+
+驱动节点内维护一个当前发送包缓存 `current_send_packet_`。上层下发目标点时更新缓存，同时用一个定时器周期性把数据包发送给串口：
+
+```cpp
+// 驱动节点中的发送逻辑
+void SerialDriverNode::sendPacket()
+{
+  if (!has_command_ || !serial_driver_ || !serial_driver_->port()->is_open()) {
     return;
+  }
+
+  try {
+    auto buffer = serializePacket(current_send_packet_);
+    serial_driver_->port()->send(buffer);
+  } catch (const std::exception & ex) {
+    RCLCPP_ERROR(get_logger(), "串口发送异常: %s", ex.what());
+    reopenPort();
+  }
 }
-// CRC 通过，可以安全使用 received.linear 和 received.angular
 ```
 
-## Python 端的打包
+### 2. 接收逻辑：独立后台线程解包
 
-如果你需要用 Python 写测试脚本或快速验证协议，用 `struct` 模块：
+串口接收是一个持续阻塞等待的过程，绝对不能放在 ROS 2 的主回调线程里，必须开一个独立的后台线程：
 
-```python
-import struct
+```cpp
+void SerialDriverNode::receiveLoop()
+{
+  std::vector<uint8_t> single_byte(1);
+  const size_t PACKET_SIZE = sizeof(ReceivePacket);
+  std::vector<uint8_t> frame_buffer(PACKET_SIZE);
 
-# 打包：'<BffH' 表示小端序，1个uint8 + 2个float + 1个uint16
-header = 0xAA
-linear = 1.0
-angular = 0.5
-crc = 0x1234  # 实际要算
+  while (rclcpp::ok()) {
+    try {
+      // 1. 扫描首字节 0xAA
+      serial_driver_->port()->receive(single_byte);
+      if (single_byte[0] != FRAME_HEADER_0) continue;
+      frame_buffer[0] = FRAME_HEADER_0;
 
-data = struct.pack('<BffH', header, linear, angular, crc)
-ser.write(data)
+      // 2. 匹配第二字节 0x56 (下行 ACK 帧)
+      serial_driver_->port()->receive(single_byte);
+      if (single_byte[0] != FRAME_HEADER_ACK) continue;
+      frame_buffer[1] = FRAME_HEADER_ACK;
 
-# 解包
-received = struct.unpack('<BffH', ser.read(11))
-_, linear, angular, crc = received
+      // 3. 读取剩余定长负载
+      std::vector<uint8_t> rest(PACKET_SIZE - 2);
+      serial_driver_->port()->receive(rest);
+      std::memcpy(frame_buffer.data() + 2, rest.data(), rest.size());
+
+      // 4. 解析与 CRC16 校验
+      ReceivePacket pkt{};
+      if (parseReceivePacket(frame_buffer.data(), frame_buffer.size(), pkt)) {
+        // 校验通过，发布 ROS 2 状态消息给上层决策
+        auto msg = std::make_shared<robot_serial::msg::Ack>();
+        msg->last_cmd_code = pkt.last_cmd_code;
+        msg->status = pkt.status;
+        msg->status_flags = pkt.status_flags;
+        msg->feedback_data = pkt.feedback_data;
+        ack_pub_->publish(*msg);
+      } else {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "CRC 校验失败，丢弃坏帧");
+      }
+    } catch (const std::exception & ex) {
+      RCLCPP_ERROR_THROTTLE(get_logger(), *get_clock(), 5000, "串口读取异常: %s", ex.what());
+      reopenPort();
+    }
+  }
+}
 ```
 
-> `<` 表示小端序（Little-Endian），上位机和电控必须约定好字节序。RC 赛场上基本都是小端序（STM32 和 x86 都是），但约定就是约定，写死在文档里。
+**这么做的好处是什么？**
+* 上层的决策协程和控制算法，从此**彻底与物理串口隔离**；
+* 上层只需要向 `/command` 话题发布指令，并从 `/robot_status` 订阅下位机反馈；
+* 什么时候想在自己电脑上单测？甚至不需要改动任何驱动代码，直接用我们框架里的 `MockActionDispatcher`，或者跑一个虚拟节点往 `/robot_status` 发布假消息即可！
 
 ---
 
-# 纯虚接口隔离：设计红线
+# 赛场硬件联调保命锦囊
 
-## 为什么上层不能直接碰串口？
+最后总结几个赛场联调时让很多新手抓狂的物理硬件大坑：
 
-假设你写了一个决策状态机，里面直接调串口发指令：
-
-```cpp
-// ❌ 决策代码直接依赖串口
-class DecisionFSM {
-    SerialPort serial_;  // 直接持有串口对象
-
-    void grab_block() {
-        serial_.write(grab_cmd, sizeof(grab_cmd));  // 决策层知道串口细节
-    }
-};
-```
-
-这有什么问题？
-1. **没法单测**——没有真实硬件就跑不了
-2. **换硬件就炸**——换了一种通信方式（比如 CAN 总线），决策代码全部要改
-3. **职责混乱**——决策层在操心"怎么发字节"，而不是"该不该抓"
-
-## 正确做法：定义纯虚接口
-
-```cpp
-// 底盘接口：上层只需要知道"底盘能做什么"
-class IChassis {
-public:
-    virtual ~IChassis() = default;
-
-    // 设置速度（线速度 m/s, 角速度 rad/s）
-    virtual void set_velocity(float linear, float angular) = 0;
-
-    // 急停
-    virtual void emergency_stop() = 0;
-
-    // 获取当前轮速
-    virtual WheelSpeed get_wheel_speed() = 0;
-};
-
-// 机械臂接口
-class IArm {
-public:
-    virtual ~IArm() = default;
-
-    // 抓取
-    virtual void grab(int block_id) = 0;
-
-    // 释放
-    virtual void release() = 0;
-
-    // 查询是否到位
-    virtual bool is_ready() = 0;
-};
-```
-
-上层代码只依赖接口，不依赖实现：
-
-```cpp
-// ✅ 决策层只依赖接口
-class DecisionFSM {
-    IChassis& chassis_;  // 引用接口，不知道底层是什么
-    IArm& arm_;
-
-public:
-    DecisionFSM(IChassis& chassis, IArm& arm)
-        : chassis_(chassis), arm_(arm) {}
-
-    void grab_block() {
-        chassis_.set_velocity(0, 0);     // 停车
-        arm_.grab(1);                     // 抓 1 号块
-        // 不需要知道这些指令怎么变成字节发出去的
-    }
-};
-```
-
-## 串口实现：藏在接口后面
-
-```cpp
-// 真实硬件实现：通过串口和电控通信
-class SerialChassis : public IChassis {
-    SerialPort serial_;
-
-public:
-    SerialChassis(const std::string& port, int baudrate)
-        : serial_(port, baudrate) {}
-
-    void set_velocity(float linear, float angular) override {
-        SpeedCmd cmd;
-        cmd.header = 0xAA;
-        cmd.linear = linear;
-        cmd.angular = angular;
-        cmd.crc = crc16((uint8_t*)&cmd, sizeof(cmd) - 2);
-        serial_.write((uint8_t*)&cmd, sizeof(cmd));
-    }
-
-    void emergency_stop() override {
-        uint8_t stop_cmd[] = {0xAA, 0xFF, 0x00, 0x00};
-        // ... 发送急停帧
-    }
-
-    WheelSpeed get_wheel_speed() override {
-        // 从串口读取轮速反馈帧，解包返回
-        // ...
-    }
-};
-```
-
-> **设计红线：上层（决策、控制）永远不知道串口的存在。** 它只知道"我有一个底盘，能设速度、能急停、能读轮速"。至于这个底盘是串口控制的、CAN 控制的、还是仿真的？上层不关心也不需要关心。
-
----
-
-# Mock 假硬件：脱离实车做单测
-
-接口隔离最大的好处之一：你可以用几行代码造一个"假底盘"。
-
-```cpp
-// 假硬件实现：不接串口，纯内存操作
-class MockChassis : public IChassis {
-public:
-    float linear_ = 0, angular_ = 0;
-    bool stopped_ = false;
-    WheelSpeed wheel_speed_{0, 0};
-
-    void set_velocity(float linear, float angular) override {
-        linear_ = linear;
-        angular_ = angular;
-    }
-
-    void emergency_stop() override {
-        linear_ = 0;
-        angular_ = 0;
-        stopped_ = true;
-    }
-
-    WheelSpeed get_wheel_speed() override {
-        return wheel_speed_;
-    }
-
-    // 测试辅助：手动设置轮速反馈
-    void mock_set_wheel_speed(float left, float right) {
-        wheel_speed_ = {left, right};
-    }
-};
-
-class MockArm : public IArm {
-public:
-    bool grabbed_ = false;
-    bool ready_ = true;
-
-    void grab(int block_id) override {
-        grabbed_ = true;
-        ready_ = false;
-    }
-
-    void release() override {
-        grabbed_ = false;
-        ready_ = true;
-    }
-
-    bool is_ready() override {
-        return ready_;
-    }
-};
-```
-
-有了 Mock，不用连任何硬件就能测决策逻辑：
-
-```cpp
-#include <cassert>
-
-void test_grab_sequence() {
-    MockChassis chassis;
-    MockArm arm;
-    DecisionFSM fsm(chassis, arm);
-
-    // 模拟抓取流程
-    fsm.grab_block();
-
-    // 验证：决策层应该先停车再抓
-    assert(chassis.linear_ == 0);
-    assert(chassis.angular_ == 0);
-    assert(arm.grabbed_ == true);
-
-    std::cout << "✅ 抓取流程测试通过" << std::endl;
-}
-
-int main() {
-    test_grab_sequence();
-    return 0;
-}
-```
-
+### 1. 串口权限被拒（Permission Denied）
+在 Linux 下刚插上 USB 转串口模块，程序启动往往报 `open port failed: Permission denied`。  
+这是因为串口设备（`/dev/ttyUSB0`）默认属于 `dialout` 用户组，普通用户没有读写权限。  
+**永久解决办法**：把当前登录用户加入该组，然后**注销并重新登录一次**：
 ```bash
-g++ -std=c++20 test_decision.cpp -o test_decision
-./test_decision
-# 输出：✅ 抓取流程测试通过
+sudo usermod -aG dialout $USER
 ```
 
-> **这就是 Mock 的价值：你在笔记本电脑上就能验证决策逻辑对不对，不用等车造好、不用接线、不用怕撞墙。** 赛前改方案时，先在 Mock 上跑通，再上实车。
-
----
-
-# 完整的收发流程
-
-把前面的知识串起来，一个完整的"上位机发速度指令 → 收轮速反馈"流程：
-
-```cpp
-// main.cpp
-#include <iostream>
-#include <thread>
-#include <chrono>
-
-int main() {
-    // 1. 创建串口底盘（真实硬件）
-    SerialChassis chassis("/dev/ttyUSB0", 115200);
-
-    // 2. 或者创建假底盘（开发调试用）
-    // MockChassis chassis;
-
-    // 3. 发速度指令
-    chassis.set_velocity(1.0, 0.3);  // 前进 1m/s，右转 0.3rad/s
-
-    // 4. 读轮速反馈
-    auto speed = chassis.get_wheel_speed();
-    std::cout << "左轮: " << speed.left << " m/s" << std::endl;
-    std::cout << "右轮: " << speed.right << " m/s" << std::endl;
-
-    // 5. 急停
-    chassis.emergency_stop();
-
-    return 0;
-}
+### 2. 串口设备号漂移问题（ttyUSB0 变 ttyUSB1）
+赛车上有多个 USB 设备（比如陀螺仪、主控单片机、雷达），工控机重启或者颠簸接触不良重新插拔一下，原先的 `/dev/ttyUSB0` 就会变成 `/dev/ttyUSB1`，导致驱动程序找不到端口暴毙。  
+**解决办法**：通过 `udev rules` 绑定设备的硬件 Vendor ID 和 Product ID：
+```bash
+# 查看串口设备的硬件唯一标识
+lsusb
+# 假设输出为：ID 10c4:ea60 Cygnal Integrated Products CP210x...
 ```
+在 `/etc/udev/rules.d/99-robot-serial.rules` 中写入：
+```text
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", SYMLINK+="robot_chassis"
+```
+执行 `sudo udevadm control --reload && sudo udevadm trigger` 生效。  
+之后无论怎么插拔重启，你的下位机设备永远可以通过固定路径 `/dev/robot_chassis` 访问！
 
----
-
-# 常见坑
-
-> 发出去的数据电控收不到？
-
-检查顺序：
-1. 串口有没有开对（`ls /dev/ttyUSB*` 看看设备在不在）
-2. 波特率对不对（上位机和电控必须一样）
-3. TX/RX 有没有接反（A 的 TX 要接 B 的 RX）
-4. 电平对不对（TTL 3.3V 和 RS485 不能直连，需要转换模块）
-
-> 数据偶尔对不上，CRC 经常校验失败？
-
-大概率是**字节序**或**结构体对齐**问题。用 `#pragma pack(1)` 强制对齐，并在两端打印原始字节比对：
-
+### 3. 数据不对劲时：善用 Hex Dump 抓包
+两边联调如果发现 CRC 总是对不上，千万别在脑子里猜。在解包失败处打一行十六进制打印：
 ```cpp
-// 调试用：打印原始字节
 void hex_dump(const uint8_t* data, size_t len) {
-    for (size_t i = 0; i < len; i++) {
-        printf("%02X ", data[i]);
-    }
-    printf("\n");
+  for (size_t i = 0; i < len; i++) {
+    printf("%02X ", data[i]);
+  }
+  printf("\n");
 }
 ```
-
-> 串口读到的数据是乱码？
-
-检查：是不是读到了上一帧的残留数据。每次打开串口后先清空缓冲区：
-
-```cpp
-serial.flush();  // 清空收发缓冲区
-```
+把两端打印出来的原始十六进制放在一起对比，一眼就能看出是字节错位了、高低字节颠倒了、还是首尾字节被截断了。
 
 ---
 
 # 小结
 
-```
-字节流（串口原始数据）
-    ↓ 帧头/帧尾切分
-帧协议（结构化消息）
-    ↓ CRC 校验
-可靠数据（确认没出错）
-    ↓ 纯虚接口隔离
-干净的 API（IChassis / IArm）
-    ↓ Mock 实现
-脱离硬件的单测能力
-```
+这一章我们完成了整车系统最底层的“物理契约与驱动封装”：
+1. **先对表再写码**：约定死小端序、波特率与数据字段，拒绝口头传话；
+2. **区分上下行帧头**：`0xAA 0x55` 与 `0xAA 0x56` 避免总线误判；
+3. **查表法 CRC-16**：兼顾运行性能与抗电磁干扰；
+4. **内存紧凑对齐**：`#pragma pack(push, 1)` 让结构体与二进制流安全转换；
+5. **ROS 2 节点化隔离**：将串口彻底封闭在 `robot_serial` 内，向上层暴露干净的标准话题。
 
-这一章建立了上位机和硬件之间的"契约"。从下一章开始，我们在这个契约之上搭建消息总线和三层架构——上层代码将彻底和硬件解耦。
+底层的通信链路已经就绪。在下一章中，我们将进入 **Ch4 消息总线与 ROS 2 双线程调度桥接**，剖析整个框架最精妙的跨语言调度核心：ROS 2 执行器与 Python asyncio 是如何实现跨线程零阻塞唤醒的！

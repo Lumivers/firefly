@@ -2,7 +2,7 @@
 title: "协程驱动的异步决策系统"
 published: 2026-07-26
 pinned: false
-description: "从阻塞式死循环到 async/await 线性代码，用 Python 协程重构 RC 决策状态机。"
+description: "从 1600 行 C++ 状态机到 350 行 Python 协程、阻塞代码的毁灭性后果、先挂号后发指令的时序防坑、超时黑匣子与战术解耦设计。"
 tags: [asyncio, 协程, 状态机, 决策, python, 教程]
 category: RC上位机
 licenseName: "CC BY-NC-SA 4.0"
@@ -11,298 +11,268 @@ image: ""
 draft: false
 ---
 
-> 这一章讲的东西，是我 26 赛季重构决策代码的核心。1600 行 C++ 嵌套状态机砍到 350 行 Python async 协程，改流程从"翻半天文件还经常改错"变成"改一个坐标就行了"。
+> 这一章讲的东西，是我重构决策代码的最核心产物。从早期的 1600 行 C++ 嵌套状态机，砍到 350 行纯粹的 Python async 协程；改全场比赛战术，从“翻半天多重 switch-case 还经常改错枚举”，变成了“改两行路线调用就能直接出发”。
 
-# 为什么用 Python 而不是 C++？
+# 为什么决策层坚决选 Python 而不是 C++？
 
-C++20 也有协程了，`co_await`、`co_yield` 都有，理论上能写异步决策。但我还是选了 Python，原因很实际：
+在很多工科竞赛里，都有“全栈 C++ 才是正统”、“Python 慢得不能用在机器人上”的刻板印象。甚至 C++20 也引入了协程（`co_await`、`co_yield`），理论上也能写异步。
 
-**决策逻辑不需要性能。** 决策层干的事是"走到 1 号点 → 抓块 → 走到 2 号点"，每个动作之间间隔几百毫秒到几秒，计算量几乎为零。不像 Pure Pursuit 要 50Hz 跑浮点运算，决策层一年的运算量可能还没有控制层一秒多。用 C++ 跑决策就像开推土机去买菜。
+但我依然把整套决策调度系统用 Python `asyncio` 重构，原因非常现实：
 
-**Python 的可读性和维护性碾压 C++ 协程。** C++20 协程的语法是出了名的难写难读——`promise_type`、`coroutine_handle`、`initial_suspend`、`final_suspend`，光配置一个协程就要写一堆 boilerplate。Python 的 `async/await` 是语言原生语法，写起来跟普通函数几乎一样。比赛前一天要改流程，Python 改两行就能跑，C++ 可能要调半小时编译。
+1. **决策层根本不需要微秒级计算性能**  
+   决策层干的事情是：“导航到取物区 $\to$ 抓取物块 $\to$ 导航到发射区 $\to$ 发射”。每个动作之间间隔几百毫秒到几秒，计算量无限趋近于零。真正吃性能的是底盘运动解算、激光雷达点云与视觉检测——那些跑在 C++ 或被底座封装好的独立节点里。决策层一整年消耗的 CPU 周期，可能还没控制层一秒钟多。用 C++ 写决策，就像开着重型推土机去楼下小卖部买瓶可乐。
 
-**C++ 留给串口驱动和运动控制。** 真正吃性能的地方（串口收发、Pure Pursuit、图像处理）用 C++，决策用 Python，各取所长。中间靠 ROS2 通信串起来。
+2. **Python 的表达能力与可读性降维打击 C++**  
+   C++20 的协程是出了名的难写难读。光是为了让一个函数能 `co_await`，你就要手动实现 `promise_type`、`coroutine_handle`、`initial_suspend`、`final_suspend` 等一大堆晦涩的模板样板代码。一旦发生生命周期悬挂指针，直接报段错误崩溃。  
+   而 Python 的 `async/await` 是原生语言级支持，写起来和普通的同步线性代码毫无区别。
 
-> 不要为了"统一技术栈"而全部用 C++，也不要因为"Python 慢"就不敢用。决策层不需要快，需要的是能改、能读懂、比赛前一天还能动。
+3. **比赛现场的“抗造能力”**  
+   在 Robocon 备赛区，小组赛每一场之间往往只有 15~20 分钟的检录和休整时间。如果上一场对手采用了针对性的封堵战术，你必须在 5 分钟内修改取球路线与作业顺序。  
+   用 Python 改战术，改两行代码按一下保存就能跑；如果是全套 C++，改完状态机还要面临重新编译、链接、打包的折磨，万一现场手抖写漏了个引用，半天都找不出编译报错。
 
-# 阻塞代码的毁灭性后果
-
-先看一段很多 RC 队伍都写过的代码：
-
-```cpp
-void grab_block(int block_id) {
-    send_command(block_id);           // 发指令
-    while (!arm_done) {               // 死循环等
-        sleep(100);                   // 每 100ms 看一眼
-    }
-    // 机械臂到位了，继续
-}
-```
-
-看起来没问题对吧？发指令，等完成，继续。逻辑清晰。
-
-但这个 `while + sleep` 会把整个线程卡住。在它 sleep 的这 100ms 里，ROS2 的回调全在排队——导航到了的到达信号、按钮按下的重试信号、传感器的新数据，全都处理不了。决策线程在睡觉，回调在等，两边互相卡。
-
-> 我见过一个队，机械臂卡住了，`while (!arm_done)` 一直转，导航到了的回调排在后面收不到，车到了目标点不知道自己到了，继续在那原地等机械臂。
-
-问题的根源是：**阻塞式代码一次只能干一件事。** 等机械臂的时候不能等急停，等导航的时候不能等按钮。你要是想同时等两件事，就得开多线程，然后线程之间共享状态、加锁、处理竞态。1600行的那坨就是这么来的。
+> **架构选型铁律**：  
+> 算力密集型（串口驱动、底盘运动学、图像预处理）用 C++；逻辑高频变更型（决策调度、全场战术）用 Python。两者通过 ROS 2 话题解耦，这才是现代机器人工程各取所长的形态。
 
 ---
 
-# 异步：发指令，挂起，等回调
+# 阻塞式代码的毁灭性后果
 
-协程的思路完全不同。不是"发完指令然后死循环等"，而是"发完指令，挂起，让出控制权，等事件来了再唤醒"：
+先来看一段很多战队新手都写过的经典代码：
 
 ```python
-async def grab_block(fsm, block_id):
-    send_command(block_id)                    # 发指令
-    event = await fsm.wait_event("ARM_DONE")  # 挂起，让出控制权
-    # 事件来了，自动恢复执行
+# 典型车祸现场：阻塞式等待
+def grab_block(block_id):
+    send_arm_command(block_id)     # 1. 往下位机发动作指令
+    while not arm_done_flag:       # 2. 阻塞死循环等电控回包
+        time.sleep(0.1)            # 每 100ms 查一次
+    send_next_action()             # 3. 机械臂到位了，继续下一步
 ```
 
-`await` 的时候协程暂停了，但事件循环还在跑——急停回调、按钮回调、传感器回调全都能正常处理。等 `ARM_DONE` 事件到了，协程自动从 `await` 那一行恢复往下执行。
+这段代码从逻辑上看貌似无可挑剔：发指令 $\to$ 等完成 $\to$ 下一步。
 
-对比一下：
+但在实际机器人运行中，这个 `while + time.sleep` 是致命的毒药。因为在它 sleep 的几百毫秒到几秒内，**当前线程被彻底占死**：
+- 底盘到点的信号到了？收不到，因为回调被排在后面；
+- 操作手拍下急停按钮或裁判哨响要求复位？处理不了；
+- 激光雷达和传感器数据？全堵在底层缓冲区里，内存急剧膨胀。
 
-```
-阻塞写法：
-  发指令 → sleep → sleep → sleep → sleep → 收到完成 → 继续
-  （中间什么都干不了）
+> 我见过最惨烈的一个事故：机械臂在赛场上机械卡壳，一直死循环。此时车子明明已经到了终点，但因为处理到达信号的回调被死循环挡住，小车就一直以为自己没到，在原地死等机械臂，直到 3 分钟比赛时间耗尽。
 
-协程写法：
-  发指令 → await（挂起）→ 事件循环继续跑其他回调 → 收到事件 → 恢复
-  （挂起期间急停、按钮、传感器回调全不受影响）
-```
-
-这就是为什么 async/await 是硬件控制的"唯一解"——它解决了"等一件事的时候不能处理其他事"这个根本问题，而且不用开多线程。
+**阻塞式代码的根本死穴在于：它剥夺了程序同时响应意外事件的能力。**
 
 ---
 
-# wait_event 机制
+# 协程的解法：发指令，挂起，等事件通知
 
-核心就一个东西：**事件队列 + Future 挂起**。
-
-```python
-class FSM:
-    def __init__(self):
-        self._waiters: list[tuple[str, asyncio.Future]] = []
-
-    def post_event(self, event: Event):
-        """从任意线程投递事件，唤醒所有匹配的 awaiter."""
-        for event_type, future in self._waiters:
-            if event_type == event.type and not future.done():
-                future.set_result(event)
-        self._waiters = [
-            (et, f) for et, f in self._waiters if f.done()
-        ]
-
-    async def wait_event(self, event_type: str, timeout: float = None) -> Event:
-        """等待指定类型的事件，挂起当前协程."""
-        future = self._loop.create_future()
-        self._waiters.append((event_type, future))
-
-        try:
-            if timeout:
-                return await asyncio.wait_for(future, timeout)
-            return await future
-        except asyncio.TimeoutError:
-            return Event(event_type, success=False)
-```
-
-流程是这样的：
-
-1. 协程调 `wait_event("ARM_DONE")`，创建一个 Future，放进 waiters 列表，然后挂起
-2. ROS2 回调线程收到 `/juece_ack`，调 `post_event(Event("ARM_DONE"))`
-3. `post_event` 在 waiters 里找到匹配的 Future，`set_result` 唤醒它
-4. 协程从 `await` 恢复，拿到事件，继续往下跑
-
-`post_event` 用的是 `call_soon_threadsafe`，从 ROS2 回调线程安全地投递到 asyncio 事件循环：
+协程的思路完全不同。它不是“发完指令死循环硬等”，而是：**“发完指令后立即挂起当前函数，把 CPU 和线程执行权交还给事件循环；等目标事件到达时，由事件循环自动唤醒恢复执行。”**
 
 ```python
-def post_event(self, event: Event):
-    if self._loop.is_running():
-        self._loop.call_soon_threadsafe(self._dispatch_event, event)
-    else:
-        self._loop.call_soon(self._dispatch_event, event)
+async def grab_block(fsm, act, block_id):
+    act.send_arm_command(block_id)             # 1. 发送硬件指令
+    event = await fsm.wait_event("ARM_DONE")   # 2. 挂起！让出控制权
+    # 当收到电控的 ARM_DONE 事件后，自动从这里满血复活往下跑
+    act.send_next_action()
 ```
 
-> 这个机制看起来简单，但它解决了一个很关键的问题：**ROS2 回调线程和 asyncio 决策线程之间的桥梁。** ROS2 回调是同步的，asyncio 是异步的，`call_soon_threadsafe` 是唯一安全的跨线程唤醒方式。
+看清楚这一瞬间发生的本质改变：
+
+```
+【阻塞模式】：
+  发指令 ──► time.sleep ──► time.sleep ──► 线程全卡死，急停/传感器/回调全报废
+
+【协程模式】：
+  发指令 ──► await 挂起 ──► 主循环自由调度急停、处理传感器、刷新里程计 ──► 事件到达唤醒
+```
+
+在协程挂起的这几秒钟里，系统的事件循环依然在以极高速度运转。如果此时收到了急停话题或者重置信号，系统可以瞬间响应处理。
 
 ---
 
-# 从 1600 行到 350 行
+# 核心等待机制：先挂号，后发指令
 
-我 26 赛季之前的 C++ 决策代码是这样的：
+在设计事件驱动系统时，绝大多数初学者都会踩进一个极其隐蔽的**时序竞争漏洞（Race Condition）**。
 
-```cpp
-// 简化版，实际更惨
-void DecisionNode::onTick() {
-    switch (state_) {
-        case ZONE1_NAV:
-            if (nav_done_) {
-                state_ = ZONE1_DT35;
-                send_dt35_command();
-            }
-            break;
-        case ZONE1_DT35:
-            if (dt35_done_) {
-                state_ = ZONE1_GRAB;
-                send_grab_command(1);
-            }
-            break;
-        case ZONE1_GRAB:
-            if (arm_done_) {
-                state_ = ZONE1_ROTATE;
-                send_rotate_command(M_PI);
-            }
-            break;
-        // ... 还有十几个 state
-    }
-}
-```
+### 致命的时序漏洞：“先发指令，后等待”
 
-每个状态一个 case，每个 case 里还要判断子状态、处理超时、处理异常。Zone1 有 8 个状态，Zone2 有 11 个状态，加上子状态总共 20 多个。状态之间的切换散落在 `onTick`、`handleSubEvent`、`enterSub` 三个函数里，改一个流程要在三个地方同步修改。
-
-Python 协程版长这样：
+很多人直觉上会这么写原子动作：
 
 ```python
-async def zone1(fsm, act, cfg, state):
-    for pt in cfg.zone1_route:
-        await fsm.nav_to(pt.x, pt.y)          # 走到目标点
-        await fsm.dt35_correct(...)             # DT35 微调
-        await fsm.spearhead_and_wait(1)         # 抓矛头
-        await fsm.rotate_to(0.0, 0.7, π)       # 转 180°
-        await fsm.spearhead_and_wait(2)         # 对接
-        await fsm.spearhead_and_wait(4)         # 完成
-        await fsm.wait(3.0)                     # 等 3 秒
+# 存在严重竞态隐患的代码
+async def bad_action(fsm, act):
+    act.send_hardware_command()           # ① 先把串口指令发出去
+    # ── 就在这里！极微小的微秒级时间窗口 ──
+    await fsm.wait_event("ACTION_DONE")   # ② 再挂起等待事件
 ```
 
-没有 switch-case，没有状态编号，没有散落多处的切换逻辑。`await` 就是状态切换——每一行 `await` 就是一次"发指令 → 等完成 → 继续"。
+在本地仿真、或者下位机回包较慢时，这段代码通常表现正常。
 
-> 1600 行里大概有 800 行是在管理状态切换本身（进入状态、退出状态、子状态、超时处理），真正干活的逻辑也就 300 行。协程把那 800 行管理代码全干掉了，剩下的就是业务逻辑本身。
+但在真实比赛现场，下位机如果是极速响应（例如电控在 50 微秒内直接通过串口回包），或者在进程内部通信时：
+1. ① 发送硬件指令；
+2. 下位机瞬间回包，ROS 2 回调线程立马收到并调用了 `post_event("ACTION_DONE")`；
+3. 但此时 ② 的 `wait_event` **甚至还没来得及向状态机注册等待者（Waiter）**！
+4. 状态机发现当前没有任何人在等这个事件，直接当成历史旧事件抛弃；
+5. 紧接着，② 开始执行并向状态机挂号，然而那个确认信号已经在几微秒前溜走了；
+6. **协程陷入永久等待，直到超时崩溃！**
+
+这就是为什么很多队伍的代码在平时测试偶尔“偶发性发呆”，而且“加了个 print 打印之后 bug 就不见了”（因为 print 的耗时改变了竞态时序）。
+
+### `robocon-fsm` 的解法：先挂号，后发指令
+
+在我们的框架中，彻底杜绝了这种微秒级时序隐患。标准的等待模式必须是：**先在状态机把号挂上，再去触发物理动作**。
+
+```python
+# robocon-fsm 中的标准可靠模式
+async def safe_action(fsm, act):
+    # 1. 先挂号：在状态机内部预注册 Future，把陷阱先设好
+    fut = fsm.create_waiter("ACTION_DONE")
+    try:
+        # 2. 后发指令：此时哪怕下位机在 1 微秒内回包，Future 也必定能捕获到
+        act.send_hardware_command()
+        # 3. 挂起等待刚才挂好号的 Future
+        event = await fsm.wait_future("ACTION_DONE", fut, timeout=3.0)
+        return event
+    finally:
+        # 确保异常时清理 waiter，绝不造成内存泄露
+        fsm.cancel_waiter(fut)
+```
+
+框架提供的 `retry_until_ack` 底层全部严格基于“先挂号后发指令”原则实现。无论硬件通信有多快、无论多线程如何并发，确认信号绝不丢失。
 
 ---
 
-# 原子动作与业务逻辑分离
+# 高级调度原语与超时诊断黑匣子
 
-这是重构过程中最重要的一个设计决策。
+在全场对抗赛中，比赛流程远比单纯的单步等待更复杂。`robocon-fsm` 提供了成套的高级异步原语：
 
-**原子动作**是硬件层面的能力，封装了时序和确认逻辑，改不得：
+### 1. 谓词匹配器（Predicate Matcher）
 
-```python
-async def grab(fsm, act, block, need_stand=True, retract=False):
-    """抓块流程：发指令 → 等机械臂到位 → 等吸盘确认."""
-    if retract:
-        act.publish_cmd_with_area(block=0, stand=1)
-        await fsm.wait_event("ARM_DONE")
-
-    act.publish_cmd_with_area(block=block, stand=1 if need_stand else 0)
-    await fsm.wait(5.0 if block == 2 else 3.0)
-
-    act.waiting_xipan = True
-    act.publish_cmd_with_area(block=block, run=1)
-    await fsm.wait_event("XIPAN_GRABBED")
-
-    act.publish_cmd_with_area(block=block, run=0)
-```
-
-这里面的时序（先发 block 再发 run、等几秒再查吸盘、吸到了再清 run）是电控的硬件时序决定的，你改不了，也不该改。
-
-**业务决策**是路线和顺序，天天变：
+有时我们等待的不仅是一个事件名称，还需要校验其中的具体参数：
 
 ```python
-# 比赛前一天要改流程，你就改这里
-cfg.zone1_route = [4, 5]    # → 改成 [5, 4]
-cfg.zone2_tasks = [...]      # → 重新排任务顺序
-```
-
-```python
-async def zone2(fsm, act, cfg, state):
-    await grab(fsm, act, block=2, need_stand=True)     # 先抓 2 号
-    await grab(fsm, act, block=1, need_stand=True)     # 再抓 1 号
-    await do_stair(fsm, act, 1)                         # 上台阶
-```
-
-grab 和 do_stair 是原子动作，zone2 里的调用顺序是业务决策。改顺序不用动 grab 的实现，改 grab 的实现不影响业务逻辑。
-
-> 26 赛季改过三次流程，每次就是改 `zone2` 函数里的几行调用顺序。如果还是 C++ 那套 1600 行的状态机，改一次至少半天，还得祈祷没改错状态编号。
-
----
-
-# 超时、重试与急停
-
-## 超时
-
-硬件不是每次都靠谱。机械臂可能卡住，导航可能到不了，每个 `wait_event` 都要带超时：
-
-```python
-result = await fsm.wait_event("ARM_DONE", timeout=5.0)
-if not result.success:
-    log.warning("ARM_DONE 超时，跳过")
-```
-
-超时了就返回一个 `success=False` 的事件，协程继续往下跑，不会卡死。
-
-我的代码里还有一个 `force_skip_upper()` 的机制——超时后不光跳过等待，还要抑制后续的 `up_free=1` 信号，防止下位机恢复后又触发一轮等待：
-
-```python
-def force_skip_upper(self):
-    self.suppress_up_busy = True    # 后续 up_free=1 全部忽略
-    self.up_free = True             # 立即标记为空闲
-```
-
-## 重试
-
-有些操作值得重试，比如矛头抓取：
-
-```python
-result = await fsm.spearhead_and_wait(1, up_timeout=5.0)
-if not result.success:
-    log.warning("矛头抓取失败，重试一次")
-    result = await fsm.spearhead_and_wait(1, up_timeout=5.0)
-    if not result.success:
-        log.warning("重试也失败了，继续往下走")
-```
-
-重试次数不能太多——赛场上时间是有限的，卡在一个动作上重试 5 次，后面的任务全来不及。
-
-## 急停
-
-急停不是软件管的事。我们的车用遥控器控制，有问题了直接按遥控器，电控那边收到信号直接断电停车，不经过上位机。
-
-软件层面要做的是：车已经停了，决策协程还在 `await` 等事件呢，别让它卡在那。实际操作就是 kill 掉进程重新跑。不需要在每个 `await` 里检查急停标志——硬件都停了，软件清理不清理无所谓，重来就行。
-
-> 急停要的是快，遥控器一按硬件就停了，比任何软件方案都可靠。别在软件里搞急停逻辑，那是电控的事。
-
----
-
-# 并行等待
-
-有时候需要同时等两件事。比如"一边走导航一边等机械臂准备好"：
-
-```python
-await asyncio.gather(
-    fsm.nav_to(1.0, 2.0),
-    fsm.wait_event("ARM_READY"),
+# 过滤其他机构回包，只精确等待 command == 2 (机械臂抓取完成) 的事件
+await fsm.wait_event(
+    lambda e: e.type == "GRIPPER_STATUS" and e.data.get("command") == 2,
+    timeout=2.0
 )
 ```
 
-`asyncio.gather` 同时挂起两个协程，任意一个先完成都不影响另一个继续等。两个都完成了才往下走。
+### 2. 组合等待：`wait_all` 与 `wait_any`
 
-也有"等任意一个先到"的场景：
+赛场上为了争分夺秒，机器人常常需要**边走边做机构动作**：
 
 ```python
-event = await fsm.wait_event_any("NAV_DONE", "EMERGENCY_STOP")
-if event.type == "EMERGENCY_STOP":
-    return  # 急停了，不继续
+# 并行协同：底盘开往发射区的同时，发射机构提前预热并升降到位
+# 两个动作同时进行，直到全部就绪才继续
+await fsm.wait_all(
+    act.navigate(bb.shoot_x, bb.shoot_y),
+    fsm.wait_event("SHOOTER_READY"),
+    timeout=8.0
+)
 ```
+
+也有“先到先处理”的竞争场景：
+
+```python
+# 边导航边检测防守障碍：
+# 如果底盘先到点，正常执行；如果中途检测到对手恶意冲撞，立刻触发避障分支
+winner_event = await fsm.wait_any("NAV_DONE", "OBSTACLE_BLOCKED", timeout=6.0)
+if winner_event.type == "OBSTACLE_BLOCKED":
+    act.get_logger().warn("行进路线被阻挡，切换备用绕行路线！")
+    await fallback_route_mission(fsm, act, bb)
+```
+
+### 3. 超时诊断黑匣子
+
+在调试赛车时，最让人抓狂的是控制台冷冰冰地抛出一句：
+`asyncio.TimeoutError`
+
+你根本不知道在这 3 秒钟里硬件到底发生了什么：是电控压根没回包？还是回了别的包？还是指令发错编号了？
+
+在 `robocon-fsm` 中，`FSMTimeoutError` 会自动关联事件总线的历史审计追踪，直接打印**现场诊断黑匣子**：
+
+```python
+# 当超时发生时，控制台抛出的异常自带上下文：
+# FSMTimeoutError: Timed out waiting for event 'GRIPPER_DONE' after 3.0s. Recent events on bus: ['NAV_DONE', 'DT35_ALIGNED', 'HEARTBEAT']
+```
+
+看到这行报错，你 1 秒钟就能破案：“底盘到点了，DT35 也校准了，心跳也是正常的，唯独没有 `GRIPPER_DONE`——机械臂电控没发完成确认帧或者微动开关没触发”。调试时间直接从半小时缩短到几秒钟。
+
+---
+
+# 从 1600 行 C++ 到 350 行 Python 的蜕变
+
+对比一下重构前后的代码形态，就能直观感受这种架构带来的工程震撼。
+
+### 曾经的 C++ 状态机形态（噩梦级可读性）
+
+```cpp
+// 曾经的 C++ 巨石代码：多重 switch-case 与散落的状态机
+void DecisionNode::onTick() {
+    switch (current_state_) {
+        case State::NAV_TO_ZONE1:
+            if (nav_reached_) {
+                send_dt35_trigger();
+                current_state_ = State::WAIT_DT35;
+            }
+            break;
+        case State::WAIT_DT35:
+            if (dt35_ready_) {
+                send_arm_command(1);
+                current_state_ = State::WAIT_ARM_GRAB;
+            }
+            break;
+        case State::WAIT_ARM_GRAB:
+            if (arm_done_) {
+                send_chassis_rotate(180.0);
+                current_state_ = State::WAIT_ROTATE;
+            }
+            break;
+        // ... 下面还有 20 多个 case，状态切换散落在多个回调函数里
+    }
+}
+```
+
+改一个状态，你要在枚举定义头文件、主循环 switch-case、事件接收函数里改三处。稍微改错一个枚举值，整台小车直接死在场地上。
+
+### 现在的 Python 协程形态（极简线性）
+
+```python
+# 当前的 Python 协程战术流程：一目了然的线性全场逻辑
+async def zone1_mission(fsm, act, bb):
+    # 1. 跑位与打点校正
+    act.send_navigate(bb.zone1_x, bb.zone1_y)
+    await fsm.wait_event("NAV_DONE", timeout=5.0)
+    await act.dt35_align()
+
+    # 2. 机械臂作业并转向
+    await act.grab_ring()
+    act.send_rotate(180.0)
+    await fsm.wait_event("ROTATE_DONE", timeout=2.0)
+
+    # 3. 投放与归位
+    await act.release_ring()
+```
+
+没有枚举状态变量，没有多重 switch-case，没有跨文件状态跳转。**每一行 `await` 就是一次状态转移**。代码的阅读顺序，就是小车在赛场上的行动路线。
+
+---
+
+# 原子动作与战术逻辑解耦
+
+重构带来的另一个巨大红利，是实现了**动作与战术的物理分工**：
+
+- **原子动作（`my_actions.py`）**：
+  封装底层的硬件时序、参数拼包、等待 ACK 与重试机制。例如 `grab_ring()` 内部包含“张开爪子 $\to$ 下降机械臂 $\to$ 闭合爪子 $\to$ 确认到位”，这一套动作由机械电控时序决定，一旦调稳后基本不动。
+- **全场战术（`my_decision.py`）**：
+  只负责按战术编排原子动作的调用顺序。比赛前一晚要改策略（例如“先去 2 号区防守，再去 1 号区拿球”），你只需要在 `my_decision.py` 里颠倒两行函数的调用顺序，**不需要改动任何底盘控制或通信协议的代码**。
 
 ---
 
 # 小结
 
-协程决策的本质就一句话：**用 `await` 替代 `while + sleep`，用事件替代状态变量。**
+1. **决策层选型首选 Python 协程**：逻辑调度不需要微秒级性能，需要的是极简的代码表达能力和赛场现场 5 分钟改完战术的极高容错度。
+2. **坚决不用 `while + sleep`**：阻塞等待会彻底杀死节点响应意外事件的能力；利用 `await` 挂起让出控制权，保持事件循环畅通。
+3. **谨防时序竞态**：异步等待物理硬件响应时，必须坚持**“先挂号，后发指令”**（`create_waiter` $\to$ 发送 $\to$ `wait_future`），杜绝微秒级回包丢失。
+4. **善用高级原语与诊断工具**：利用 `wait_all` 实现边跑边做动作，利用 `wait_any` 实现动态避障切线；遇到超时充分利用黑匣子日志秒级定位故障。
+5. **解耦原子动作与战术流程**：硬件时序锁死在 `my_actions.py`，战术编排自由释放给 `my_decision.py`，改路线永不影响底层通信。
 
-阻塞式代码把"等硬件"和"处理其他事件"耦合在一起，协程把它们彻底分开——挂起等硬件的时候，事件循环该处理急停处理急停，该处理按钮处理按钮。
-
-1600 行到 350 行不是因为 Python 比 C++ 短，而是因为协程干掉了状态管理本身。剩下的 350 行全是业务逻辑，改流程改的就是这 350 行里的几行调用顺序。
+下一章，我们将下沉到底盘运动学与路径跟踪——看看小车是如何依靠 Pure Pursuit 算法，平滑、高速地沿着预定轨迹疾驰的。
