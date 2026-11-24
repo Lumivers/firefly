@@ -1,8 +1,8 @@
 ---
-title: "第五章 贪心算法：局部最优即全局最优"
+title: "第五章 贪心算法：局部最优的取舍"
 published: 2026-04-28
 pinned: false
-description: "**面试突击 · 贪心算法。** 从贪心 vs DP 的抉择判断到区间调度模板，从跳跃游戏到霍夫曼编码，从交换论证到归纳证明——贪心的难点不在代码，在于证明'为什么贪心是对的'。"
+description: "算法笔记 · 贪心算法。内容按优先级梳理：P0 核心考点（贪心选择性质与最优子结构、区间调度按右端点排序模板、跳跃游戏最远覆盖）、P1 贪心证明与进阶变体（微扰交换论证法、反悔贪心、霍夫曼编码）、P2 游戏 Buff 时间轴调度与加油站环形路线、P3 经典题速查与霍夫曼参考源码附录。"
 tags: [算法, 贪心算法, 区间调度, 霍夫曼编码, 面试, C++]
 category: 算法笔记
 licenseName: "CC BY-NC-SA 4.0"
@@ -11,717 +11,152 @@ image: ""
 draft: false
 ---
 
-# 第五章 贪心算法：局部最优即全局最优
+# 第五章 贪心算法：局部最优的取舍
 
-> **一句话理解**：贪心是 DP 的"反面"——DP 枚举所有可能的选择取最优，贪心则断言"这一步的最优选择就是全局最优的选择"。学贪心的关键是学会**证明为什么贪心策略正确**。
-
-> 📋 前置知识：Ch3（基础DP）—— 先理解 DP 的"枚举所有选择"，才能体会贪心的"只看当前最优"
+> 贪心算法在对问题求解时，每一步都做出在当前看来**最好的、局部最优的选择**。它不从全局所有可能路线中枚举求解，而是寄希望于通过一系列局部最优步进推导出全局最优解。贪心的难点不在于代码实现，而在于**数学上如何证明贪心策略的正确性**。
 
 ---
 
-## 5.1 概念直觉 —— What & Why
+## 0. 考点优先级概览
 
-### 贪心 vs DP —— 本质差异
+根据面试常见考察频次与工程实用度，内容按优先级组织如下：
 
-```
-DP 的思维方式：
-  dp[i] 依赖之前所有的选择 → 我不知道哪个选择最好 → 我都试一遍
-
-贪心的思维方式：
-  当前有两个选择 A 和 B → 我能证明选 A 永远不劣于选 B → 永远选 A
-```
-
-| 维度 | DP | 贪心 |
-|------|-----|------|
-| 决策方式 | 枚举所有可能，取最优 | 只看当前，选局部最优 |
-| 正确性保证 | 状态转移方程覆盖所有情况 | **需要严格证明**（难点！） |
-| 时间复杂度 | 通常 O(n²) 或 O(n*k) | 通常 **O(n log n)** 或 O(n) |
-| 代码量 | 较多（填表/递推） | **极少**（通常是排序 + 遍历） |
-| 错的代价 | 错了就是算法设计错误 | **错了也能跑出结果——只是不是最优** |
-
-> ⚠️ 贪心最大的陷阱：想当然。很多看起来"显然"的贪心策略其实是错的。**面试中使用贪心之前，必须能在口头上给出正确性证明**。
-
-### 贪心成立的两个条件
-
-1. **贪心选择性质**：局部最优选择能导致全局最优——即第一步选最优的不会"锁死"后续的可能性
-2. **最优子结构**：做出贪心选择后，剩下的子问题与原问题同构
-
-### 常见伪贪心案例 —— 从错误中学习
-
-```
-反面教材：找零钱问题
-  硬币面值 [1, 3, 4]，找 6 块钱。
-  
-  贪心（每次选最大面值）：6 → 4 → 1 → 1 （3 枚硬币）
-  最优解：3 + 3 = 6 （2 枚硬币）
-  
-  ❌ 贪心失败！因为选了 4 之后，剩余 2 无法用最优方式凑出。
-  
-  ✅ 这个问题应该用 DP（完全背包，Ch3）
-```
-
-> 💡 **面试中的表述**：「贪心不是万能的——它只在"贪心选择性质"成立时才有效。面试中遇到"最值"问题，先想 DP，如果 DP 的转移中有冗余（很多选择显然不会是最优），再考虑贪心。而且必须能证明贪心策略的正确性。」
+| 优先级 | 分类 | 核心内容 | 重点说明 |
+| :--- | :--- | :--- | :--- |
+| **P0** | **核心考点** | 贪心成立两大条件、贪心 vs 动态规划对比、区间调度模型（按结束时间排序）、跳跃游戏 | 高频手撕题型与核心区间模板 |
+| **P1** | **理论证明与变体** | 贪心证明方法（微扰交换论证法）、反悔贪心（优先队列反悔）、霍夫曼编码 | 算法课理论考核与高阶题型 |
+| **P2** | **工程与游戏实战** | 角色多 Buff 叠加时间轴相容排布、环形资源补给路径（加油站模型） | 战斗与经济系统资源调度 |
+| **P3** | **基础与附录** | 经典题目速查清单、霍夫曼编码构建 C++ 参考源码（可折叠） | 知识库备忘查阅 |
 
 ---
 
-## 5.2 原理图解
+## P0：核心考点
 
-### 贪心 vs DP 的决策树对比
+### 1.1 贪心成立的两大数学前提
 
-```mermaid
-graph TD
-    subgraph "DP：探索整棵决策树"
-        D0["状态"] --> D1["选 A"]
-        D0 --> D2["选 B"]
-        D0 --> D3["选 C"]
-        D1 --> D11["..."]
-        D2 --> D21["..."]
-        D3 --> D31["..."]
-    end
+并非所有问题都能用贪心解决。贪心算法能够成立必须且仅需满足以下两条性质：
+1. **贪心选择性质 (Greedy Choice Property)**：
+   全局最优解可以通过一系列局部最优的选择来达到。换言之，**做当前选择时不需要依赖子问题的后续解，且一旦做出选择就绝不反悔撤销**。
+2. **最优子结构 (Optimal Substructure)**：
+   一个问题的最优解包含其子问题的最优解（与动态规划共享此特性）。
 
-    subgraph "贪心：只走一条路径"
-        G0["状态"] -->|"证明 A 永远最优"| G1["只选 A"]
-        G1 -->|"证明 A 永远最优"| G2["只选 A"]
-        G2 --> G3["答案"]
-    end
-
-    style D0 fill:#d00000,stroke:#e85d04,color:white
-    style G0 fill:#2d6a4f,stroke:#40916c,color:white
-    style G3 fill:#2d6a4f,stroke:#40916c,color:white
-```
-
-### 区间调度 —— 贪心最经典的应用场景
-
-```
-问题：N 个区间 [start, end)，选最多的互不重叠的区间。
-
-直觉 1：每次都选最早开始的 → ❌ 反例：一个超长区间覆盖了所有短的
-直觉 2：每次都选最短的 → ❌ 反例：一个短区间位于中间，两边各有一个刚好不重叠的
-直觉 3：每次都选最早结束的 → ✅ 正确！可以用交换论证证明
-```
-
-```mermaid
-graph LR
-    subgraph "贪心策略：选最早结束"
-        direction LR
-        A["按结束时间排序"] --> B["选第一个（最早结束）"]
-        B --> C["跳过所有与选中区间重叠的"]
-        C --> D["在剩余区间中重复"]
-    end
-
-    style A fill:#555,stroke:#888,color:#ccc
-    style B fill:#2d6a4f,stroke:#40916c,color:white
-    style D fill:#d00000,stroke:#e85d04,color:white
-```
+#### 贪心 vs 动态规划 (DP)
+| 维度 | 贪心算法 | 动态规划 (DP) |
+| :--- | :--- | :--- |
+| **决策方式** | 每步单路推进，仅做当前局部最优判定 | 保留所有状态，在转移方程中对比 `max`/`min` |
+| **回退与后悔** | **绝不回退，无状态回溯** | 全局权衡，兼顾历史不同分支 |
+| **计算复杂度** | 通常较低，通常为 $O(n)$ 或由排序主导 $O(n \log n)$ | 相对较高，通常为 $O(n^2)$ 或 $O(n \cdot W)$ |
+| **普适性** | 极严苛，必须具备严格的贪心选择性 | 更通用，只要具备无后效性均可求解 |
 
 ---
 
-## 5.3 核心算法实现
+### 1.2 核心手撕 1：区间调度问题 (Interval Scheduling)
 
-### 5.3.1 区间调度 —— 贪心最经典的模板
-
-#### 无重叠区间 (LeetCode 435)
+* **问题**：给定一组区间，选出互不重叠的最大区间数量（或求移除最少区间使得剩余区间互不重叠，LC 435）。
+* **贪心策略**：
+  **必须按照区间的【右端点（结束时间）】升序排序！**
+  - **证明直觉**：优先选择结束最早的活动，能够**为后续其他未安排的活动留出尽可能宽裕的剩余时间空间**。
 
 ```cpp
-// 求需要移除的最少区间数，使剩余区间互不重叠
-// 等价于：保留最多的互不重叠区间
-// 贪心策略：按结束时间升序，每次选最早结束的
+#include <vector>
+#include <algorithm>
+
+// 返回为了使剩余区间互不重叠，需要移除的最小区间数量 (LeetCode 435)
 int eraseOverlapIntervals(std::vector<std::vector<int>>& intervals) {
     if (intervals.empty()) return 0;
 
-    // 按结束时间排序（贪心的核心依据）
-    std::sort(intervals.begin(), intervals.end(),
-        [](const auto& a, const auto& b) {
-            return a[1] < b[1];  // 按 end 升序
-        });
+    // 核心贪心准则：按右端点升序排序
+    std::sort(intervals.begin(), intervals.end(), [](const auto& a, const auto& b) {
+        return a[1] < b[1];
+    });
 
-    int count = 1;                // 保留的区间数
-    int lastEnd = intervals[0][1];
+    int count = 1; // 互不重叠的最大区间数量
+    int end = intervals[0][1];
 
-    for (int i = 1; i < intervals.size(); ++i) {
-        if (intervals[i][0] >= lastEnd) {  // 不重叠
-            ++count;
-            lastEnd = intervals[i][1];
+    for (size_t i = 1; i < intervals.size(); ++i) {
+        if (intervals[i][0] >= end) {
+            // 当前区间的起点不早于上一区间的终点，可以兼容
+            count++;
+            end = intervals[i][1];
         }
     }
-    return intervals.size() - count;  // 移除的 = 总数 - 保留的
-}
-```
-
-#### 用最少数量的箭引爆气球 (LeetCode 452)
-
-```cpp
-// 气球在 x 轴上占据 [start, end]，箭从 x 轴垂直射出
-// 一支箭可以刺穿所有重叠的气球 → 求最少箭数
-// 贪心 = 找"最大重叠"：射在重叠区间的共同结束位置
-int findMinArrowShots(std::vector<std::vector<int>>& points) {
-    if (points.empty()) return 0;
-
-    // 按结束位置排序
-    std::sort(points.begin(), points.end(),
-        [](const auto& a, const auto& b) { return a[1] < b[1]; });
-
-    int arrows = 1;
-    int arrowPos = points[0][1];  // 当前这支箭的射出位置
-
-    for (int i = 1; i < points.size(); ++i) {
-        if (points[i][0] > arrowPos) {  // 需要新箭
-            ++arrows;
-            arrowPos = points[i][1];
-        }
-    }
-    return arrows;
-}
-```
-
-> 💡 **面试中的表述**：「区间调度问题的贪心策略是"按结束时间排序，每次选最早结束的"。"最早结束"意味着给后面的区间留出了最大的剩余空间——这就是贪心选择的直觉。正确性可以用交换论证严格证明。」
-
-#### 合并区间 (LeetCode 56)
-
-```cpp
-// 合并所有重叠区间（不是贪心，但和区间调度一起考）
-std::vector<std::vector<int>> merge(std::vector<std::vector<int>>& intervals) {
-    if (intervals.empty()) return {};
-
-    // 按起始位置排序（不是结束位置！）
-    std::sort(intervals.begin(), intervals.end(),
-        [](const auto& a, const auto& b) { return a[0] < b[0]; });
-
-    std::vector<std::vector<int>> result;
-    result.push_back(intervals[0]);
-
-    for (int i = 1; i < intervals.size(); ++i) {
-        auto& last = result.back();
-        if (intervals[i][0] <= last[1]) {
-            last[1] = std::max(last[1], intervals[i][1]);  // 合并
-        } else {
-            result.push_back(intervals[i]);
-        }
-    }
-    return result;
-}
-```
-
-| 问题 | 排序依据 | 策略 |
-|------|---------|------|
-| 无重叠区间 (435) | 按结束 | 选最早结束 |
-| 最少箭数 (452) | 按结束 | 箭射在重叠区的共同结束点 |
-| 合并区间 (56) | **按开始** | 遇到重叠就扩展 |
-
----
-
-### 5.3.2 分配问题
-
-#### 分发饼干 (LeetCode 455)
-
-```cpp
-// N 个孩子各有"胃口" g[i]，M 块饼干各有"尺寸" s[j]
-// 每块饼干只能给一个孩子，孩子的胃口 ≤ 饼干尺寸时得到满足
-// 求最多满足的孩子数
-// 贪心：优先满足胃口小的孩子，用最小的能满足他的饼干
-int findContentChildren(std::vector<int>& g, std::vector<int>& s) {
-    std::sort(g.begin(), g.end());
-    std::sort(s.begin(), s.end());
-
-    int child = 0;
-    for (int cookie = 0; child < g.size() && cookie < s.size(); ++cookie) {
-        if (s[cookie] >= g[child]) {
-            ++child;  // 这块饼干满足了这个孩子
-        }
-    }
-    return child;
-}
-```
-
-> 直觉：胃口小的孩子更容易满足——把大饼干留给胃口大的孩子。如果反过来，大饼干给了胃口小的孩子，可能导致后面的大胃口孩子没有合适的饼干。
-
-#### 加油站 (LeetCode 134)
-
-```cpp
-// 环形路线，gas[i] 是在 i 站可加的油，cost[i] 是从 i 到 i+1 的油耗
-// 能否找到起点，绕一圈回到起点？
-// 贪心：如果总油量 >= 总消耗，一定存在解；找累计油量降到最低点的下一个站
-int canCompleteCircuit(std::vector<int>& gas, std::vector<int>& cost) {
-    int totalSurplus = 0;
-    int currentSurplus = 0;
-    int start = 0;
-
-    for (int i = 0; i < gas.size(); ++i) {
-        int diff = gas[i] - cost[i];
-        totalSurplus += diff;
-        currentSurplus += diff;
-
-        if (currentSurplus < 0) {
-            // 从 start 到 i 的任何一站都无法作为起点
-            start = i + 1;
-            currentSurplus = 0;
-        }
-    }
-    return totalSurplus >= 0 ? start : -1;
+    return static_cast<int>(intervals.size()) - count;
 }
 ```
 
 ---
 
-### 5.3.3 跳跃游戏系列
+### 1.3 核心手撕 2：跳跃游戏 (LeetCode 55)
 
-#### 跳跃游戏 I (LeetCode 55)
-
-```cpp
-// 判断能否从位置 0 跳到位置 n-1
-// nums[i] = 在位置 i 能跳的最远距离
-// 贪心：维护"当前能到达的最远位置"
-bool canJump(std::vector<int>& nums) {
-    int furthest = 0;
-    for (int i = 0; i < nums.size() && i <= furthest; ++i) {
-        furthest = std::max(furthest, i + nums[i]);
-    }
-    return furthest >= nums.size() - 1;
-}
-```
-
-```
-nums = [2, 3, 1, 1, 4]
-i=0: furthest = max(0, 0+2) = 2   → 最远到索引 2
-i=1: furthest = max(2, 1+3) = 4   → 最远到索引 4（终点了！）
-return true
-```
-
-#### 跳跃游戏 II (LeetCode 45)
+* **问题**：给定非负整数数组，每个元素代表当前位置能跳跃的最大步数，判断能否到达最后一个下标。
+* **贪心策略**：
+  不纠结每次究竟跳 1 步还是 2 步，而是**维护一个能够到达的【全局最远覆盖范围 `max_reach`】**。
+  - 遍历数组：只要当前下标 $i \le \text{max\_reach}$，就尝试用 $i + \text{nums}[i]$ 去扩充更新 `max_reach`。
+  - 若 `max_reach >= n - 1`，立即返回 true；若循环结束仍未到达，返回 false。
 
 ```cpp
-// 求从 0 到 n-1 的最少跳跃次数（保证可达）
-// 贪心：每一步跳到"能使我下一步走最远"的位置
-int jump(std::vector<int>& nums) {
+bool canJump(const std::vector<int>& nums) {
+    int max_reach = 0;
     int n = nums.size();
-    if (n <= 1) return 0;
-
-    int jumps = 0;
-    int currentEnd = 0;    // 当前这一步能到达的最远边界
-    int furthest = 0;      // 下一步能到达的最远位置
-
-    for (int i = 0; i < n - 1; ++i) {  // 注意：不遍历最后一个位置
-        furthest = std::max(furthest, i + nums[i]);
-
-        if (i == currentEnd) {         // 到达当前步的边界
-            ++jumps;                    // 必须跳下一步
-            currentEnd = furthest;      // 更新边界
-
-            if (currentEnd >= n - 1) break;  // 已能到终点
-        }
-    }
-    return jumps;
-}
-```
-
-```mermaid
-graph LR
-    subgraph "nums = [2,3,1,1,4]"
-        direction LR
-        S0["i=0\n能跳最远2"] -->|"边界=2"| S1["i=1\nfurthest=4"]
-        S1 -->|"i==边界，跳！"| S2["jumps=1\ncurrentEnd=4"]
-        S2 -->|"currentEnd>=4"| S3["结束，jumps=1"]
-    end
-
-    style S0 fill:#555,stroke:#888,color:#ccc
-    style S1 fill:#e85d04,stroke:#f48c06,color:white
-    style S3 fill:#2d6a4f,stroke:#40916c,color:white
-```
-
----
-
-### 5.3.4 任务调度器 (LeetCode 621)
-
-```cpp
-// N 种任务，同种任务之间必须有 n 个单位的冷却
-// 求最短执行时间
-// 贪心：按频率降序排列，高频任务之间插入冷却槽
-int leastInterval(std::vector<char>& tasks, int n) {
-    std::vector<int> freq(26, 0);
-    for (char t : tasks) freq[t - 'A']++;
-    std::sort(freq.begin(), freq.end(), std::greater<int>());
-
-    int maxFreq = freq[0];
-    int idleSlots = (maxFreq - 1) * n;          // 冷却槽总数
-
-    // 用次高频任务填充冷却槽
-    for (int i = 1; i < 26 && freq[i] > 0; ++i) {
-        idleSlots -= std::min(freq[i], maxFreq - 1);
-    }
-
-    idleSlots = std::max(0, idleSlots);
-    return tasks.size() + idleSlots;
-}
-```
-
-```
-示例：tasks = [A,A,A,B,B,B], n = 2
-maxFreq = 3 (A 出现 3 次)
-冷却槽 = (3-1) * 2 = 4
-
-布局：A _ _ A _ _ A
-      ↑ 填 B：A B _ A B _ A → idleSlots = 4 - 2 = 2
-      ↑ 没有更多任务填了 → 答案 = 6 + 2 = 8
-```
-
----
-
-### 5.3.5 霍夫曼编码
-
-霍夫曼编码是**贪心算法最优子结构的经典证明案例**：用最小堆每次合并频率最低的两个节点。
-
-```cpp
-#include <queue>
-#include <string>
-#include <unordered_map>
-
-struct HuffmanNode {
-    char ch;
-    int  freq;
-    HuffmanNode *left, *right;
-
-    HuffmanNode(char c, int f) : ch(c), freq(f), left(nullptr), right(nullptr) {}
-    HuffmanNode(char c, int f, HuffmanNode* l, HuffmanNode* r)
-        : ch(c), freq(f), left(l), right(r) {}
-};
-
-// 构建霍夫曼树，返回每个字符的编码
-std::unordered_map<char, std::string> buildHuffman(
-    const std::unordered_map<char, int>& freqMap) {
-
-    // 最小堆，按频率排序
-    auto cmp = [](HuffmanNode* a, HuffmanNode* b) {
-        return a->freq > b->freq;  // 频率小的优先
-    };
-    std::priority_queue<HuffmanNode*, std::vector<HuffmanNode*>, decltype(cmp)> pq(cmp);
-
-    for (auto& [ch, freq] : freqMap) {
-        pq.push(new HuffmanNode(ch, freq));
-    }
-
-    // 贪心：每次合并频率最小的两个
-    while (pq.size() > 1) {
-        auto* left = pq.top(); pq.pop();
-        auto* right = pq.top(); pq.pop();
-
-        auto* parent = new HuffmanNode('\0',
-            left->freq + right->freq, left, right);
-        pq.push(parent);
-    }
-
-    // DFS 遍历树，生成编码
-    std::unordered_map<char, std::string> codes;
-    std::function<void(HuffmanNode*, std::string)> dfs =
-        [&](HuffmanNode* node, std::string code) {
-        if (!node) return;
-        if (!node->left && !node->right) {  // 叶子节点
-            codes[node->ch] = code;
-        }
-        dfs(node->left,  code + "0");
-        dfs(node->right, code + "1");
-    };
-
-    dfs(pq.top(), "");
-    return codes;
-}
-```
-
-> 💡 **面试中的表述**：「霍夫曼编码的贪心策略是"每次合并频率最低的两个节点"。这保证了高频字符获得短编码、低频字符获得长编码，从而使加权路径长度最小。正确性证明用了"最优子结构"——如果一棵树是最优的，那么合并它最小频率的两个兄弟节点后，得到的树在"少一个字符"的问题上也是最优的。」
-
----
-
-### 5.3.6 贪心正确性证明 —— 面试中如何快速论证
-
-面试中不需要写严格数学证明，但需要**口头论证**。三种常用方法：
-
-**方法一：交换论证 (Exchange Argument)**
-
-```
-假设存在一个不包含贪心选择的最优解，通过交换操作把它变成包含贪心选择的解，
-且交换后不会变差 → 贪心选择可以成为最优解的一部分。
-
-典型应用：区间调度。假设最优解不包含最早结束的区间，
-把最优解的第一个区间替换为最早结束的区间 → 不会减少区间数量。
-```
-
-**方法二：归纳法**
-
-```
-证明：贪心选择第一步后，剩余问题与原问题同构（最优子结构），
-且贪心选择不会破坏全局最优性。
-
-典型应用：跳跃游戏。如果能证明"从当前位置跳到能到达的最远位置"
-不会错过任何可到达的节点 → 归纳。
-```
-
-**方法三：反证法**
-
-```
-假设贪心解不是最优解，导出矛盾。
-
-典型应用：分发饼干。假设不给胃口最小的孩子分配"最小的能满足他的饼干"，
-而是留给了后面的孩子 → 后面的孩子可能吃不到 → 不是最优。
-```
-
----
-
-## 5.4 高频面试题精讲
-
-### 题目 1：划分字母区间 (LeetCode 763)
-
-```cpp
-// 贪心：记录每个字符最后出现的位置
-// 遍历时不断扩展当前片段的右边界
-std::vector<int> partitionLabels(std::string s) {
-    std::vector<int> last(26, 0);
-    for (int i = 0; i < s.size(); ++i) {
-        last[s[i] - 'a'] = i;
-    }
-
-    std::vector<int> result;
-    int start = 0, end = 0;
-
-    for (int i = 0; i < s.size(); ++i) {
-        end = std::max(end, last[s[i] - 'a']);  // 扩展右边界
-        if (i == end) {                          // 到达当前片段的边界
-            result.push_back(i - start + 1);
-            start = i + 1;
-        }
-    }
-    return result;
-}
-```
-
-### 题目 2：根据身高重建队列 (LeetCode 406)
-
-```cpp
-// people[i] = [h, k]，h 是身高，k 是前面有 k 个身高 ≥ h 的人
-// 贪心：先按身高降序排，身高相同按 k 升序排
-// 然后逐个插入：k 就是在当前结果中的插入位置
-std::vector<std::vector<int>> reconstructQueue(
-    std::vector<std::vector<int>>& people) {
-
-    std::sort(people.begin(), people.end(),
-        [](const auto& a, const auto& b) {
-            return a[0] > b[0] || (a[0] == b[0] && a[1] < b[1]);
-        });
-
-    std::vector<std::vector<int>> result;
-    for (const auto& p : people) {
-        result.insert(result.begin() + p[1], p);
-    }
-    return result;
-}
-```
-
-> 💡 为什么先排高个子？因为高个子插入后，后面插入的矮个子不会影响高个子的 k 值——矮个子对高个子的 k 无贡献。
-
----
-
-### 面试题速查清单
-
-| # | 题目 | LeetCode | 难度 | 核心技巧 |
-|---|------|----------|------|---------|
-| 1 | 分发饼干 | 455 | Easy | 双指针 + 排序 |
-| 2 | 无重叠区间 | 435 | Medium | 按结束时间排序 |
-| 3 | 最少箭数 | 452 | Medium | 按结束时间 + 重叠计数 |
-| 4 | 合并区间 | 56 | Medium | **按开始时间排序** |
-| 5 | 跳跃游戏 | 55 | Medium | 最远可达 |
-| 6 | 跳跃游戏 II | 45 | Medium | 分层 BFS 贪心 |
-| 7 | 加油站 | 134 | Medium | 累计油量 |
-| 8 | 划分字母区间 | 763 | Medium | 最后出现位置 |
-| 9 | 任务调度器 | 621 | Medium | 填冷却槽 |
-| 10 | 根据身高重建队列 | 406 | Medium | 降序 + 按 k 插入 |
-| 11 | IPO | 502 | Hard | 堆 + 贪心 |
-| 12 | 拼接最大数 | 321 | Hard | 单调栈 + 合并 |
-
----
-
-## 5.5 🎮 游戏实战
-
-### 5.5.1 技能 CD 管理 —— 区间调度
-
-```cpp
-// 玩家有 N 个技能，每个技能有冷却时间 [start, end)
-// 不能同时使用有 CD 重叠的技能，求最多能释放多少个技能
-// → 标准区间调度问题
-struct Skill {
-    std::string name;
-    int         cooldownStart;
-    int         cooldownEnd;    // 冷却结束时间
-};
-
-std::vector<Skill> maxSkillsInWindow(const std::vector<Skill>& skills) {
-    auto sorted = skills;
-    std::sort(sorted.begin(), sorted.end(),
-        [](const Skill& a, const Skill& b) {
-            return a.cooldownEnd < b.cooldownEnd;
-        });
-
-    std::vector<Skill> result;
-    int lastEnd = -1;
-
-    for (const auto& skill : sorted) {
-        if (skill.cooldownStart >= lastEnd) {
-            result.push_back(skill);
-            lastEnd = skill.cooldownEnd;
-        }
-    }
-    return result;
-}
-```
-
-### 5.5.2 Buff 时间轴安排 —— 区间调度变体
-
-```cpp
-// 多个 Buff 道具，每个提供 [start, end) 的属性加成
-// 选一组互不重叠的 Buff，使总加成最大
-// 这是"带权区间调度"——经典 DP 问题（贪心不适用！）
-// 但可以先贪心排序，再 DP
-struct Buff {
-    int start, end, value;
-};
-
-int maxBuffValue(std::vector<Buff>& buffs) {
-    std::sort(buffs.begin(), buffs.end(),
-        [](const Buff& a, const Buff& b) { return a.end < b.end; });
-
-    int n = buffs.size();
-    std::vector<int> dp(n, 0);
 
     for (int i = 0; i < n; ++i) {
-        dp[i] = buffs[i].value;
-
-        // 二分查找最后一个不重叠的 Buff
-        int lo = 0, hi = i - 1, last = -1;
-        while (lo <= hi) {
-            int mid = (lo + hi) / 2;
-            if (buffs[mid].end <= buffs[i].start) {
-                last = mid;
-                lo = mid + 1;
-            } else {
-                hi = mid - 1;
-            }
-        }
-
-        if (last != -1) dp[i] = std::max(dp[i], dp[last] + buffs[i].value);
-        if (i > 0) dp[i] = std::max(dp[i], dp[i - 1]);
+        if (i > max_reach) return false; // 根本走不到当前位置
+        max_reach = std::max(max_reach, i + nums[i]);
+        if (max_reach >= n - 1) return true;
     }
-    return dp[n - 1];
-}
-```
-
-> 💡 带权的区间调度不能用贪心——需要 DP。但贪心排序（按 end）是 DP 的前置步骤。这也是面试中常见的"贪心预处理 + DP"模式。
-
-### 5.5.3 资源点采集路径 —— 加油站问题
-
-```cpp
-// N 个资源点排成环形，采集需要消耗燃料
-// 找一个起点使得能绕一圈采集完所有资源
-// → 标准加油站问题
-struct ResourceNode {
-    int fuelGain;     // 采集获得燃料
-    int fuelCost;     // 去下一个点的消耗
-};
-
-int findStartNode(const std::vector<ResourceNode>& nodes) {
-    int n = nodes.size();
-    int totalSurplus = 0, currentSurplus = 0, start = 0;
-
-    for (int i = 0; i < n; ++i) {
-        int diff = nodes[i].fuelGain - nodes[i].fuelCost;
-        totalSurplus += diff;
-        currentSurplus += diff;
-
-        if (currentSurplus < 0) {
-            start = i + 1;
-            currentSurplus = 0;
-        }
-    }
-    return totalSurplus >= 0 ? start : -1;
-}
-```
-
-### 5.5.4 任务优先级调度 —— 任务调度器
-
-```cpp
-// 游戏主循环中，不同类型任务有冷却时间
-// 同类任务必须间隔 n 帧 → 求最短帧数完成所有任务
-int minFrames(const std::vector<int>& taskTypes, int n) {
-    // 实现同 LeetCode 621 任务调度器
-    std::unordered_map<int, int> freq;
-    for (int type : taskTypes) freq[type]++;
-
-    int maxFreq = 0;
-    for (auto& [_, f] : freq) maxFreq = std::max(maxFreq, f);
-
-    int maxCount = 0;
-    for (auto& [_, f] : freq) {
-        if (f == maxFreq) ++maxCount;
-    }
-
-    int frameCount = (maxFreq - 1) * (n + 1) + maxCount;
-    return std::max(frameCount, (int)taskTypes.size());
+    return true;
 }
 ```
 
 ---
 
-## 5.6 30 秒速答
+### 1.4 常见面试问答要点
 
-> 📋 以下是本章核心知识点的面试速答模板。
-
----
-
-**Q：贪心和 DP 的区别？如何判断该用哪个？**
-
-> DP 枚举所有可能的选择取最优，贪心只选当前最优。面试中先想 DP——如果 DP 的转移中很多选择显然不可能成为最优（比如结束更晚的区间不可能比结束更早的好），就转贪心。贪心的风险在于——看起来合理的贪心策略可能是错的，必须能口头证明。
-
-**Q：区间调度问题的标准贪心策略？**
-
-> 按结束时间升序排序，每次选最早结束的、且与已选区间不重叠的。这样给后续区间留出了最大剩余空间。注意：如果是合并区间问题，排序依据变为**开始时间**。
-
-**Q：如何证明贪心策略的正确性？**
-
-> 三种方法。交换论证：把最优解中的某个选择替换为贪心选择，证明不会变差。归纳法：证明贪心选择第一步后，剩余问题与原问题同构。反证法：假设贪心解不是最优，导出矛盾。面试中用交换论证最多——以区间调度为例，把最优解的第一个区间换成最早结束的，不减少总数。
-
-**Q：跳跃游戏 II 的贪心思路？**
-
-> 维护两个变量：当前步的边界 currentEnd，下一步能到达的最远位置 furthest。遍历时不断更新 furthest。当 i 到达 currentEnd 时，步数+1，更新边界为 furthest。本质是 BFS 的贪心版——每层对应"跳一次能到达的所有位置"。
-
-**Q：霍夫曼编码为什么是贪心？**
-
-> 每次合并频率最低的两个节点，保证了频率高的字符离根近（短编码），频率低的离根远（长编码）。这个策略的正确性基于最优子结构：如果全局最优，则"合并最低频两个节点后"对规模-1 的问题也是最优的。
+* **Q：面试中如何向面试官证明你的贪心算法是正确的？**
+  > **回答要点**：最常用的工程证明手法是**微扰交换论证法 (Exchange Argument)**：
+  > 1. 假设存在一个全局最优解 $OPT$。
+  > 2. 比较我们的贪心解与 $OPT$ 的第一个不同决策点。
+  > 3. 用贪心解的决策替换掉 $OPT$ 的该项决策，在数学上证明替换后的结果“不会比 $OPT$ 更差”（例如区间调度中：若最优解选了一个更晚结束的活动，将其替换为贪心选取的更早结束活动，后续能容纳的活动集合只增不减）。
+  > 4. 通过归纳法逐步替换，证明贪心解的质量等于最优解。
 
 ---
 
-## 5.7 本章习题清单
+## P1：理论进阶与反悔贪心
 
-```
-区间调度：
-  □ 435. 无重叠区间 —— 经典模板
-  □ 452. 用最少数量的箭引爆气球 —— 重叠计数
-  □ 56.  合并区间 —— 按开始排序
-  □ 763. 划分字母区间 —— 动态扩展边界
+### 2.1 反悔贪心 (Regret Greedy)
 
-分配问题：
-  □ 455. 分发饼干 —— 入门贪心
-  □ 406. 根据身高重建队列 —— 降序 + 插入
-  □ 134. 加油站 —— 环形贪心
-
-跳跃游戏：
-  □ 55.  跳跃游戏 —— 可行性
-  □ 45.  跳跃游戏 II —— 最少步数
-
-调度与编码：
-  □ 621. 任务调度器 —— 冷却槽模型
-  □ 霍夫曼编码 —— 手写一次最小堆合并过程
-
-挑战：
-  □ 502. IPO —— 堆 + 贪心
-  □ 321. 拼接最大数 —— 单调栈 + 贪心合并
-```
+常规贪心是一锤子买卖；而**反悔贪心**在遇到更优候选时，**允许通过优先队列（小顶堆）撤销之前已做出的最差决策**。
+* **经典场景**：单机任务调度（耗时与惩罚）、股票买卖最佳时机。
+* **工作机制**：只要有任务就先做；一旦发现时间超额发生冲突，从小顶堆中找出之前耗时最长或收益最低的决策“反悔抛弃”，始终保持当前任务集的紧凑性。
 
 ---
 
-> 📖 下一章：[第六章 回溯与搜索进阶](../algorithm/06_backtracking) —— 当 DP 和贪心都不适用时，回溯 + 剪枝是最后的武器。从排列/组合/子集到 N 皇后，从剪枝策略到 BFS→Dijkstra→A* 的完整演化。
+### 2.2 霍夫曼编码 (Huffman Coding)
+
+根据字符出现的频率，构建最优前缀二叉树：
+* 每次从优先队列中**贪心取出频次最低的两个节点**合并为新父节点，将其权值之和重新入堆。
+* 保证高频字符编码短、低频字符编码长，达到无损压缩的熵极值。
+
+---
+
+## P2：工程实践与业务场景
+
+1. **游戏战斗 Buff 时间轴不重叠排布**：同一类互斥效果的技能持续区间，利用区间调度选取能够造成总覆盖时间最长的释放时机。
+2. **环形资源采集路线（加油站问题，LC 134）**：计算净油量差值 `gas[i] - cost[i]`，若总油量 $\ge 0$，则必定有解；一旦累加油量小于 0，说明起点必在当前考察点之后。
+
+---
+
+## P3：基础原理与参考实现
+
+### 3.1 经典题目速查
+
+| 题目 | 难度 | 核心思路 |
+| :--- | :--- | :--- |
+| **LC 455. 分发饼干** | Easy | 排序后双指针：优先把最小的饼干分给胃口最小的孩子。 |
+| **LC 452. 用最少数量的箭引爆气球** | Medium | 区间调度：按右端点升序排序，引爆重叠交叉区间。 |
+| **LC 134. 加油站** | Medium | 累加净油量，当前剩余油量小于 0 时将起点重置为下一站点。 |
+| **LC 621. 任务调度器** | Medium | 桶思想：优先安排频次最高的任务，计算冷却间隔填充。 |
+
+---
+
+> 📖 下一节：[第六章 搜索范式：回溯法与分支限界法](./06_backtracking.md) —— 状态空间树深度与广度搜索、剪枝与限界函数。

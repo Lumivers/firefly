@@ -1,9 +1,9 @@
 ---
 title: "第三章 栈：后进先出的秩序"
-published: 2026-04-04
+published: 2026-04-05
 pinned: false
-description: "**面试突击 · 栈。** 从函数调用栈到单调栈，剖析 std::stack 的适配器模式，手撕柱状图最大矩形，深入游戏引擎中的 UI 栈、状态机与 Undo/Redo 实战。"
-tags: [数据结构, C++, 面试, Stack, MonotonicStack]
+description: "数据结构笔记 · 栈。内容按优先级梳理：P0 核心考点（std::stack 容器适配器、为什么默认是 deque、最小栈 MinStack、双栈实现队列）、P1 经典算法与单调栈（单调栈套路、每日温度、接雨水、括号匹配、递归转迭代）、P2 工程实践（UI 栈、游戏状态栈、Undo/Redo 系统）与 P3 基础实现附录。"
+tags: [数据结构, C++, 面试, Stack, 单调栈]
 category: 数据结构笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
@@ -13,581 +13,121 @@ draft: false
 
 # 第三章 栈 (Stack)
 
-> **一句话理解**：栈是一种**后进先出 (LIFO)** 的受限线性表——它故意阉割了大部分操作，只留 Push / Pop / Top，换来极致的简洁性和明确的意图表达。
+> 栈是一种遵循**后进先出 (LIFO, Last In First Out)** 的受限线性表。它在物理上没有独立的数据结构，而是作为抽象接口施加于数组、双端队列或链表之上。
 
 ---
 
-## 3.1 概念直觉 —— What & Why
+## 0. 考点优先级概览
 
-### 什么是栈？
+根据面试常见考察频次与工程实用度，内容按优先级从高到低组织：
 
-你可以把栈想象成一叠**盘子**或者一个**弹夹**：你只能把新盘子放在最顶上（Push），也只能从最顶上拿走盘子（Pop）。这就是 **LIFO (Last In, First Out)** 原则。
-
-栈只暴露三个核心操作：
-- `push(x)`：压栈——把元素放到顶部
-- `pop()`：出栈——移除顶部元素（C++ 中不返回值）
-- `top()`：查看栈顶元素（不移除）
-
-**为什么要限制能力？**
-
-相比于数组和链表提供了大量 API（头插、尾插、中间插、随机访问、反转等），栈故意把能力砍到最少。这在软件工程中是一种极具哲学意味的设计：**少即是多**。限制操作意味着：
-1. 一眼就能看出这个数据结构的**意图**——LIFO 顺序
-2. 底层实现可以极致优化——只需要关心尾部操作
-3. 不会被误用——你不可能"不小心"从中间删除元素
-
-### 函数调用栈 —— 栈最本质的应用
-
-在计算机世界中，栈是极其核心的基础设施。最典型的就是 **函数调用栈 (Call Stack)**：
-
-```
-main() 调用 foo()
-  → foo() 调用 bar()
-    → bar() 调用 baz()
-      → baz() 执行完毕，回到 bar()
-    → bar() 执行完毕，回到 foo()
-  → foo() 执行完毕，回到 main()
-```
-
-每次函数调用时，CPU 会把**返回地址、局部变量、参数**打包成一个 **栈帧 (Stack Frame)** 压入调用栈。函数返回时弹出栈帧，恢复上一层的状态。这种"谁最后被调用，谁最先返回"的逻辑，完美契合 LIFO。
-
-> 💡 **面试常考点**：递归的本质就是利用系统调用栈。每一层递归 = 一个栈帧。递归深度太大 → 栈帧太多 → **Stack Overflow**。这也是为什么游戏引擎中要把递归改成手动栈迭代的原因（见 3.6.4）。
-
-### 栈的应用全景
-
-| 领域 | 应用 | 核心原理 |
-|------|------|----------|
-| 编译器 | 括号匹配、表达式求值 | 配对 / 运算符优先级 |
-| 操作系统 | 函数调用栈、中断处理 | 状态保存与恢复 |
-| 浏览器 | 前进/后退 | 双栈维护历史 |
-| 算法 | DFS、单调栈、回溯 | 后进先出的遍历顺序 |
-| 游戏引擎 | UI 栈、状态机、Undo/Redo | 层级压入/弹出 |
+| 优先级 | 分类 | 核心内容 | 重点说明 |
+| :--- | :--- | :--- | :--- |
+| **P0** | **核心考点** | `std::stack` 适配器机制、为什么默认选用 `deque`、最小栈 (MinStack)、双栈实现队列 | 经典机制与高频手写题 |
+| **P1** | **单调栈与技巧** | 单调栈核心范式、每日温度、柱状图最大矩形、接雨水、递归转显式栈 | 笔试面试常客，高效解决区间极值与边界问题 |
+| **P2** | **工程实践** | 游戏 UI 导航栈、嵌套游戏状态机 (GameState Stack)、双栈 Undo/Redo 命令模式 | 客户端与游戏引擎常用架构模式 |
+| **P3** | **基础与附录** | 各底层容器对比表、全操作复杂度、手写定长数组栈参考实现（可折叠） | 知识库查阅备忘 |
 
 ---
 
-## 3.2 结构图解
+## P0：核心考点
 
-### 栈的 Push / Pop 过程
+### 1.1 `std::stack` 底层适配器机制
 
-```mermaid
-block-beta
-    columns 6
-    block:title:6
-        columns 1
-        t["Stack — LIFO 操作示意"]
-    end
-
-    block:s1:2
-        columns 1
-        s1t["初始状态"]
-        s1a["TOP → 30"]
-        s1b["20"]
-        s1c["10  BOTTOM"]
-    end
-
-    block:s2:2
-        columns 1
-        s2t["Push(40)"]
-        s2a["TOP → 40 ← NEW"]
-        s2b["30"]
-        s2c["20"]
-    end
-
-    block:s3:2
-        columns 1
-        s3t["Pop()"]
-        s3a["TOP → 30"]
-        s3b["20"]
-        s3c["10  BOTTOM"]
-    end
-```
-
-### 函数调用栈的工作方式
-
-```mermaid
-graph TD
-    subgraph "调用栈 (从底到顶)"
-        direction BT
-        F1["main()\\n局部变量: argc, argv\\n返回地址: OS"]
-        F2["foo()\\n局部变量: x=10\\n返回地址: main+0x42"]
-        F3["bar()\\n局部变量: y=20\\n返回地址: foo+0x1A"]
-        F4["baz() ← 栈顶 (当前执行)\\n局部变量: z=30\\n返回地址: bar+0x0E"]
-
-        F1 --- F2 --- F3 --- F4
-    end
-
-    style F4 fill:#d00000,stroke:#e85d04,color:white
-    style F1 fill:#1b4332,stroke:#2d6a4f,color:white
-```
-
-> 每个矩形就是一个**栈帧 (Stack Frame)**。`baz()` 返回时，它的栈帧被弹出，控制权回到 `bar()`。
-
-### 单调栈的推演过程
-
-单调栈是面试中最高频的栈进阶题型。它的核心规则：**栈内元素必须保持单调递增（或递减），当新元素破坏单调性时，循环弹栈直到恢复。**
-
-以 "寻找右侧第一个更大元素" 为例，输入 `[2, 1, 5, 6, 2, 3]`，维护**单调递减栈**（栈底到栈顶递减）：
-
-```mermaid
-graph LR
-    subgraph "Step 1: 处理 2"
-        direction BT
-        S1["2"]
-    end
-
-    subgraph "Step 2: 处理 1"
-        direction BT
-        S2a["2"] --- S2b["1 ← top"]
-    end
-
-    subgraph "Step 3: 处理 5"
-        direction BT
-        S3["5"]
-    end
-
-    subgraph "Step 4: 处理 6"
-        direction BT
-        S4["6"]
-    end
-
-    subgraph "Step 5: 处理 2"
-        direction BT
-        S5a["6"] --- S5b["2 ← top"]
-    end
-
-    subgraph "Step 6: 处理 3"
-        direction BT
-        S6a["6"] --- S6b["3 ← top"]
-    end
-
-    style S3 fill:#2d6a4f,stroke:#40916c,color:white
-    style S4 fill:#2d6a4f,stroke:#40916c,color:white
-```
-
-```
-Step 3 细节：5 > 1 → 弹出 1（1 的答案 = 5）
-              5 > 2 → 弹出 2（2 的答案 = 5）
-              压入 5
-Step 4：6 > 5 → 弹出 5（5 的答案 = 6），压入 6
-Step 6：3 > 2 → 弹出 2（2 的答案 = 3），压入 3
-遍历结束：栈中剩余 [6, 3]，它们右边没有更大的 → 答案为 -1
-
-最终结果：[5, 5, 6, -1, 3, -1]
-```
-
-> 💡 **关键洞察**：每个元素**最多进栈一次、出栈一次**，所以即使看起来有嵌套循环，总时间复杂度仍然是 **O(n)**。
-
----
-
-## 3.3 C++ 底层实现
-
-### 3.3.1 `std::stack` —— 适配器模式
-
-在 C++ STL 中，`std::stack` **不是一个容器，而是一个容器适配器 (Container Adapter)**。它自己不管理内存，而是包装了另一个现成的容器，只暴露出栈允许的接口：
+在 C++ STL 中，`std::stack` 并非原生独立容器，而是一个**容器适配器 (Container Adapter)**。它通过封装底层已有容器的接口，对外仅暴露受限的 LIFO 行为：
 
 ```cpp
-#include <deque>
-
 template <typename T, typename Container = std::deque<T>>
 class stack {
 protected:
-    Container c;  // 底层容器（默认为 std::deque）
-
+    Container c; // 底层容器
 public:
-    // ========== 容量查询 ==========
-    bool empty() const       { return c.empty(); }
-    std::size_t size() const { return c.size(); }
-
-    // ========== 栈顶访问 ==========
-    T& top()                 { return c.back(); }
-    const T& top() const     { return c.back(); }
-
-    // ========== 压栈 ==========
-    void push(const T& x)   { c.push_back(x); }
-    void push(T&& x)        { c.push_back(std::move(x)); }
-
-    template <typename... Args>
-    void emplace(Args&&... args) {
-        c.emplace_back(std::forward<Args>(args)...);
-    }
-
-    // ========== 出栈 ==========
-    void pop()               { c.pop_back(); }
-
-    // 注意：pop() 不返回被弹出的元素！
-    // 原因：如果返回 T（按值），可能触发拷贝构造，
-    //       如果拷贝构造抛异常，元素已经被移除了 → 数据丢失。
-    //       分成 top() + pop() 两步操作是异常安全的设计。
+    void push(const T& x) { c.push_back(x); }
+    void pop()            { c.pop_back(); }
+    T& top()              { return c.back(); }
+    bool empty() const    { return c.empty(); }
+    size_t size() const   { return c.size(); }
 };
 ```
-
-> 💡 **面试追问**：`pop()` 为什么不返回被弹出的元素？
-> 这是 C++ 异常安全设计的经典案例。如果 `pop()` 返回 `T`（按值），需要调用拷贝/移动构造函数。如果构造函数抛出异常，元素已经从栈中移除但没成功交给调用者 → **数据丢失**。分成 `top()` + `pop()` 两步，`top()` 返回引用（不会失败），`pop()` 只做移除（不会失败），是**强异常保证**的设计。
-
-### 3.3.2 为什么默认底层是 `std::deque`？
-
-```mermaid
-graph LR
-    subgraph "std::deque 的分段连续内存"
-        MAP["中控 map\\n(指针数组)"]
-        B0["Buffer 0\\n[a][b][c][d]"]
-        B1["Buffer 1\\n[e][f][g][h]"]
-        B2["Buffer 2\\n[i][j][ ][ ]"]
-
-        MAP --> B0
-        MAP --> B1
-        MAP --> B2
-    end
-
-    style B2 fill:#555,stroke:#888,color:#aaa
-```
-
-`std::deque` 是一种**分段连续内存**的结构：一个中控 map（指针数组）指向多个固定大小的 Buffer 块。这给了它三个关键优势：
-
-| 对比维度 | `deque` (默认) | `vector` | `list` |
-|----------|----------------|----------|--------|
-| 扩容方式 | 新增一个 Buffer 块，**不搬老数据** | 分配 2x 新内存，**搬全部元素** | 每次 new 一个节点 |
-| 内存释放 | Buffer 空了即释放 | 不主动释放（需 `shrink_to_fit`） | 随删随释放 |
-| 缓存友好 | ✅✅（段内连续） | ✅✅✅（全局连续） | ❌（散布堆中） |
-| 头部操作 | ✅ O(1) | ❌ O(n) | ✅ O(1) |
-| 额外开销 | 中控 map 指针 | 无 | 每元素 2 指针 |
-
-**总结**：`deque` 是 `vector` 和 `list` 的折中方案——既有不错的缓存局部性，又避免了 `vector` 扩容时的全量搬迁。对于栈这种"大小不确定、元素频繁增减"的场景，`deque` 是最安全的默认选择。
-
-> 💡 如果你确定栈最大深度不大（比如 < 1000），完全可以用 `std::stack<T, std::vector<T>>`，因为 `vector` 的缓存局部性最好，且小规模下扩容代价可忽略。
-
-### 3.3.3 手写定长数组栈
-
-在游戏开发中，我们往往极度关注堆分配。如果知道最大深度，直接用栈上数组实现，**零堆分配**：
-
-```cpp
-template <typename T, std::size_t MaxDepth>
-class FixedStack {
-    static_assert(MaxDepth > 0, "MaxDepth must be > 0");
-
-    std::array<T, MaxDepth> _data;
-    int _top = -1;  // 指向当前栈顶，-1 表示空
-
-public:
-    bool push(const T& val) {
-        if (_top >= static_cast<int>(MaxDepth) - 1) {
-            return false;  // 栈满
-        }
-        _data[++_top] = val;
-        return true;
-    }
-
-    template <typename... Args>
-    bool emplace(Args&&... args) {
-        if (_top >= static_cast<int>(MaxDepth) - 1) return false;
-        _data[++_top] = T(std::forward<Args>(args)...);
-        return true;
-    }
-
-    void pop() {
-        if (_top >= 0) --_top;
-    }
-
-    T& top() { return _data[_top]; }
-    const T& top() const { return _data[_top]; }
-
-    bool empty() const { return _top == -1; }
-    bool full() const { return _top == static_cast<int>(MaxDepth) - 1; }
-    std::size_t size() const { return static_cast<std::size_t>(_top + 1); }
-    std::size_t capacity() const { return MaxDepth; }
-};
-```
-
-**使用场景**：
-
-```cpp
-// 游戏 UI 栈——最多嵌套 16 层界面
-FixedStack<UIPanel*, 16> ui_stack;
-
-// 寻路算法中的 DFS 栈——地图最大 256x256
-FixedStack<GridPos, 65536> dfs_stack;
-```
-
-### 3.3.4 手写链表栈
-
-当元素非常大（如几 KB 的结构体），不想在栈上开巨大数组时，可以用链表实现。每次 push 只分配一个节点：
-
-```cpp
-template <typename T>
-class LinkedStack {
-    struct Node {
-        T data;
-        Node* next;
-        Node(const T& val, Node* n) : data(val), next(n) {}
-    };
-
-    Node* _top = nullptr;
-    std::size_t _size = 0;
-
-public:
-    ~LinkedStack() { while (!empty()) pop(); }
-
-    void push(const T& val) {
-        _top = new Node(val, _top);  // 新节点指向旧栈顶
-        ++_size;
-    }
-
-    void pop() {
-        if (!_top) return;
-        Node* old = _top;
-        _top = _top->next;
-        delete old;
-        --_size;
-    }
-
-    T& top() { return _top->data; }
-    const T& top() const { return _top->data; }
-
-    bool empty() const { return _top == nullptr; }
-    std::size_t size() const { return _size; }
-};
-```
-
-> 链表栈的好处：push/pop **严格 O(1)**（没有均摊），且可以配合自定义 Pool Allocator（第 2 章的 Free List）来避免每次 `new/delete` 的系统调用开销。
 
 ---
 
-## 3.4 复杂度速查表
+### 1.2 为什么 `std::stack` 默认底层选用 `std::deque`？
 
-### `std::stack` 操作复杂度
+这是面试中考察 STL 底层理解深度的经典问题：为什么默认不是 `std::vector`，也不是 `std::list`？
 
-| 操作 | 时间复杂度 | 说明 |
-|------|-----------|------|
-| `push` | **O(1)** 均摊 | 底层容器的 `push_back` |
-| `pop` | **O(1)** | 底层容器的 `pop_back` |
-| `top` | **O(1)** | 底层容器的 `back` |
-| `size` / `empty` | O(1) | |
-| 查找 / 随机访问 | ❌ **不支持** | 栈不暴露随机访问接口 |
+| 底层容器 | 优势 | 劣势 | 为何未选为默认实现 |
+| :--- | :--- | :--- | :--- |
+| **`std::vector`** | 连续物理内存，尾部操作快，Cache 局部性极好 | 扩容时需申请 2 倍新内存并搬迁旧元素，产生瞬时卡顿与内存浪费 | 扩容搬迁代价不可控，且要求大块连续地址空间 |
+| **`std::list`** | 无需连续内存，增删绝不触发扩容与迭代器失效 | 每个节点独立 `new`，指针额外开销大，Cache Miss 严重 | 内存碎片严重，性能远落后于数组分段结构 |
+| **`std::deque` (默认选择)** | **分段连续存储（中控数组 + 固定 Buffer 块）**：<br>1. 扩容仅需追加新缓冲区，**无需整体搬迁旧数据**；<br>2. 保持了较高的局部缓存命中率；<br>3. 内存释放更细粒度。 | 随机访问略慢于 vector（需二次寻址） | **兼顾了无搬迁代价与局部缓存友好，且栈不需要随机访问** |
 
-### 不同底层容器对比
-
-| 底层容器 | push 复杂度 | pop 复杂度 | 优势 | 劣势 | 适用场景 |
-|----------|------------|------------|------|------|----------|
-| `std::deque` (默认) | O(1) 均摊 | O(1) | 扩容不搬老数据、可释放空闲块 | 段间跳转略慢 | 通用场景首选 |
-| `std::vector` | O(1) 均摊 | O(1) | 内存完全连续、缓存最友好 | 扩容全量拷贝、不主动释放 | 小规模、缓存敏感 |
-| `std::list` | O(1) 严格 | O(1) 严格 | 无扩容抖动、严格 O(1) | 每节点额外 16B、缓存极差 | 超大元素、严禁延迟抖动 |
-| `FixedStack` (数组) | O(1) 严格 | O(1) 严格 | 零堆分配、栈上内存 | 大小固定、可能浪费 | 游戏热路径、嵌入式 |
-
-### 横向对比：栈 vs 其他受限结构
-
-| 特性 | 栈 (LIFO) | 队列 (FIFO) | 双端队列 | 优先队列 |
-|------|-----------|-------------|----------|----------|
-| 插入端 | 顶部 | 尾部 | 两端 | 任意 |
-| 删除端 | 顶部 | 头部 | 两端 | 最大/最小 |
-| 查看 | `top()` | `front()` | `front()`/`back()` | `top()` |
-| 典型用途 | DFS、回溯、配对 | BFS、排队 | 滑动窗口 | 贪心、Top-K |
-| STL | `std::stack` | `std::queue` | `std::deque` | `std::priority_queue` |
+> 💡 **总结**：栈只需要尾部增删，完全不需要随机访问能力。`std::deque` 既避开了 `vector` 的全量搬迁停顿，又没有 `list` 散落节点的指针开销，是综合权衡的最优解。
 
 ---
 
-## 3.5 面试高频题
+### 1.3 核心手撕 1：最小栈 (LeetCode 155)
 
-### 3.5.1 有效的括号 (LeetCode 20)
-
-> 判断给定字符串中的括号 `()[]{}` 是否成对合法闭合。
-
-**思路**：最经典的栈应用。遇到左括号压栈，遇到右括号弹栈检查配对。
-
-```cpp
-bool isValid(const std::string& s) {
-    std::stack<char> st;
-    for (char c : s) {
-        // 遇到左括号：压入对应的右括号
-        if (c == '(')      st.push(')');
-        else if (c == '[') st.push(']');
-        else if (c == '{') st.push('}');
-        // 遇到右括号：栈空或不配对 → 非法
-        else if (st.empty() || st.top() != c) return false;
-        else st.pop();  // 配对成功
-    }
-    return st.empty();  // 栈没清空 → 左括号多了
-}
-// 时间 O(n), 空间 O(n)
-```
-
-> 💡 **技巧**：压入"期望的右括号"比压入左括号再做映射更简洁。
-
-### 3.5.2 最小栈 (LeetCode 155)
-
-> 设计一个栈，在常数时间检索到最小元素。支持 `push`, `pop`, `top`, `getMin`。
-
-**思路**：用**辅助栈**同步维护当前最小值。每次 push 时，如果新元素 ≤ 当前最小值，就也把它推入辅助栈。
+* **问题**：设计一个栈，支持在 **$O(1)$** 时间内检索到栈中的最小元素。
+* **双栈法解题思路**：
+  维护两个栈：`data_stack` 存储正常业务数据，`min_stack` 同步维护当前状态下的最小值。
+  - **`push(val)`**：`data_stack.push(val)`；对于 `min_stack`，推入 `min(val, min_stack.top())`。
+  - **`pop()`**：两个栈同时弹出。
+  - **`getMin()`**：直接返回 `min_stack.top()`，时间复杂度严格 **$O(1)$**。
 
 ```cpp
+#include <stack>
+#include <algorithm>
+
 class MinStack {
     std::stack<int> _data;
-    std::stack<int> _min;  // 同步维护最小值
+    std::stack<int> _min;
 
 public:
+    MinStack() {}
+
     void push(int val) {
         _data.push(val);
         if (_min.empty() || val <= _min.top()) {
             _min.push(val);
+        } else {
+            _min.push(_min.top());
         }
     }
 
     void pop() {
-        if (_data.top() == _min.top()) {
-            _min.pop();  // 弹出的恰好是当前最小值
-        }
         _data.pop();
+        _min.pop();
     }
 
-    int top()    { return _data.top(); }
-    int getMin() { return _min.top(); }
+    int top() {
+        return _data.top();
+    }
+
+    int getMin() {
+        return _min.top();
+    }
 };
-// 所有操作 O(1), 空间 O(n)
 ```
 
-> 💡 **面试变体**：面试官可能追问"能不能只用一个栈？"——可以，每次 push 时把 `val` 和当前 `min` 打包成 pair 一起压栈，但本质上空间复杂度不变。
+---
 
-### 3.5.3 逆波兰表达式求值 (LeetCode 150)
+### 1.4 核心手撕 2：用栈实现队列 (LeetCode 232)
 
-> 给定逆波兰表示法（后缀表达式），求值。例如 `["2","1","+","3","*"]` → `(2+1)*3 = 9`
-
-**逆波兰表达式**是编译器内部处理表达式的常用形式。它的求值过程天然就是一个栈操作：
+* **问题**：使用两个后进先出的栈实现先进先出的队列功能。
+* **双栈解法**：
+  划分 `in_stack`（负责入队）与 `out_stack`（负责出队）：
+  - **`push(x)`**：直接压入 `in_stack`。
+  - **`pop()` / `peek()`**：若 `out_stack` 为空，将 `in_stack` 中所有元素逐个弹出并压入 `out_stack`（负负得正，反转为 FIFO 顺序），随后从 `out_stack` 弹出。
+  - **复杂度分析**：每个元素最多进出两个栈各两次，单次操作**均摊时间复杂度为 $O(1)$**。
 
 ```cpp
-int evalRPN(std::vector<std::string>& tokens) {
-    std::stack<int> st;
+#include <stack>
 
-    for (const auto& token : tokens) {
-        if (token == "+" || token == "-" ||
-            token == "*" || token == "/") {
-            // 遇到运算符：弹出两个操作数，计算后压回
-            int b = st.top(); st.pop();  // 注意：b 是后弹出的（右操作数）
-            int a = st.top(); st.pop();  // a 是先弹出的（左操作数）
-
-            if      (token == "+") st.push(a + b);
-            else if (token == "-") st.push(a - b);
-            else if (token == "*") st.push(a * b);
-            else if (token == "/") st.push(a / b);  // 题目保证不除 0
-        } else {
-            // 遇到数字：直接压栈
-            st.push(std::stoi(token));
-        }
-    }
-    return st.top();  // 栈中最后剩的就是结果
-}
-// 时间 O(n), 空间 O(n)
-```
-
-> 💡 **面试考点**：注意操作数弹出顺序！`b` 先弹（栈顶），`a` 后弹。对于减法和除法，顺序是 `a op b`，不能反。
-
-### 3.5.4 每日温度 (LeetCode 739) —— 单调栈入门
-
-> 给一个数组表示每天的温度，返回一个新数组：需等待几天才能遇到更高的温度。遇不到填 0。
-
-**核心模型**：找**右边第一个比自己大的数**。维护一个**单调递减栈**（存下标）。
-
-```cpp
-std::vector<int> dailyTemperatures(std::vector<int>& temperatures) {
-    int n = temperatures.size();
-    std::vector<int> result(n, 0);
-    std::stack<int> st;  // 存下标，栈内下标对应的温度单调递减
-
-    for (int i = 0; i < n; ++i) {
-        // 当前温度 > 栈顶下标的温度 → 栈顶找到了它的答案
-        while (!st.empty() && temperatures[i] > temperatures[st.top()]) {
-            int prev = st.top();
-            st.pop();
-            result[prev] = i - prev;  // 天数差
-        }
-        st.push(i);
-    }
-    // 栈中剩余的下标，右边没有更大的 → 结果保持 0
-    return result;
-}
-// 时间 O(n)：每个元素最多进栈一次、出栈一次
-// 空间 O(n)
-```
-
-### 3.5.5 柱状图中最大的矩形 (LeetCode 84) —— 单调栈进阶
-
-> 给定非负整数数组 `heights` 表示柱状图的高度，找出能勾勒出的最大矩形面积。
-
-这是**单调栈最经典的 Hard 题**，面试区分度极高。
-
-**🧠 思路推导（面试时怎么想到的）**：
-
-```
-Step 1: 暴力想法
-  对每个柱子 i, 向左右扩展找到"以 heights[i] 为高的最大矩形"
-  → 对每个 i, 找左边第一个比它矮的 L[i], 右边第一个比它矮的 R[i]
-  → 面积 = heights[i] × (R[i] - L[i] - 1)
-  → 暴力找 L[i] 和 R[i] 各 O(n) → 总 O(n²), 太慢
-
-Step 2: 优化方向
-  "找左/右边第一个更小的元素" ← 这就是单调栈的经典模型!
-
-Step 3: 单调递增栈
-  维护一个栈底到栈顶单调递增的栈 (存下标)
-  当新柱子比栈顶矮时, 栈顶柱子找到了它的"右边界" (当前 i)
-  弹出后, 新的栈顶就是它的"左边界"
-  → 面积 = height[弹出] × (i - 新栈顶 - 1)
-
-Step 4: 技巧
-  在末尾追加高度为 0 的虚拟柱子 → 保证所有柱子都被弹出处理
-  (否则循环结束后还要额外处理栈中剩余元素)
-```
-
-核心思路：对每个柱子，找到它**左边第一个比它矮的**和**右边第一个比它矮的**，这两个边界之间就是以该柱子高度为高的最大矩形宽度。
-
-```cpp
-int largestRectangleArea(std::vector<int>& heights) {
-    int n = heights.size();
-    std::stack<int> st;  // 单调递增栈（存下标）
-    int max_area = 0;
-
-    for (int i = 0; i <= n; ++i) {
-        // 在末尾加一个高度为 0 的虚拟柱子，保证所有柱子都会被弹出
-        int cur_height = (i == n) ? 0 : heights[i];
-
-        while (!st.empty() && cur_height < heights[st.top()]) {
-            int h = heights[st.top()];  // 被弹出柱子的高度
-            st.pop();
-
-            // 宽度 = 左边界到右边界
-            // 左边界：栈顶的下一个元素（如果栈空则为 -1）
-            // 右边界：当前的 i（第一个比 h 矮的）
-            int width = st.empty() ? i : (i - st.top() - 1);
-            max_area = std::max(max_area, h * width);
-        }
-        st.push(i);
-    }
-    return max_area;
-}
-// 时间 O(n), 空间 O(n)
-```
-
-**图解关键步骤**（以 `[2, 1, 5, 6, 2, 3]` 为例）：
-
-```
-处理到 i=4, heights[4]=2:
-  弹出 6 (index=3): 高=6, 宽=4-2-1=1, 面积=6
-  弹出 5 (index=2): 高=5, 宽=4-1-1=2, 面积=10 ← 最大！
-
-最终答案：10
-```
-
-> 💡 **面试技巧**：在数组末尾追加一个高度为 0 的"哨兵"，可以保证循环结束时栈被完全清空，省去了循环后的额外处理逻辑。这是一个非常优雅的技巧。
-
-### 3.5.6 用栈实现队列 (LeetCode 232)
-
-> 仅使用两个栈实现先入先出 (FIFO) 队列。
-
-**思路**：`in_stack` 专管推入，`out_stack` 专管弹出。当 `out_stack` 空了，把 `in_stack` 全部倒过来——LIFO 翻转一次就变成了 FIFO。
-
-```cpp
 class MyQueue {
-    std::stack<int> _in;   // 专管入队
-    std::stack<int> _out;  // 专管出队
+    std::stack<int> _in;
+    std::stack<int> _out;
 
-    // 惰性转移：只在 out 空时才倒
     void _transfer() {
         if (_out.empty()) {
             while (!_in.empty()) {
@@ -598,7 +138,7 @@ class MyQueue {
     }
 
 public:
-    void push(int x)  { _in.push(x); }
+    void push(int x) { _in.push(x); }
 
     int pop() {
         _transfer();
@@ -612,562 +152,155 @@ public:
         return _out.top();
     }
 
-    bool empty() { return _in.empty() && _out.empty(); }
+    bool empty() {
+        return _in.empty() && _out.empty();
+    }
 };
-// push: O(1)
-// pop/peek: 均摊 O(1)（每个元素最多被倒一次）
 ```
-
-> 💡 **面试追问**："均摊 O(1) 怎么理解？" —— 每个元素一生中最多从 `_in` 倒到 `_out` 一次。n 次操作中，所有倒腾加起来最多 n 次，均摊下来每次操作 O(1)。
 
 ---
 
-### 3.5.7 接雨水 (LeetCode 42) —— 单调栈的另一个经典
+### 1.5 常见面试问答要点
 
-> 给定 n 个非负整数表示每个宽度为 1 的柱子的高度，计算下雨后能接多少水。
+* **Q：为什么系统函数调用要使用栈模型？**
+  > **回答要点**：函数的生命周期具有天然的“后调用的先返回”嵌套特征。调用子函数时，当前函数的活动记录（返回地址、形参、局部变量、寄存器状态）必须暂存；当子函数执行完毕后，控制权原路返回并恢复现场。这种嵌套上下文的保存与恢复与 LIFO 行为完全契合。
 
-与 LC 84（最大矩形）齐名的单调栈 Hard 题。面试出现频率极高。
-
-**🧠 思路推导（面试时怎么想到的）**：
-
-```
-Step 1: 直觉
-  每个位置 i 能接的水 = min(左边最高, 右边最高) - height[i]
-  (像一个桶, 水面高度由最矮的那边决定)
-
-Step 2: 暴力 O(n²)
-  对每个 i, 向左扫找 left_max, 向右扫找 right_max
-  water[i] = min(left_max, right_max) - height[i]
-
-Step 3: DP 预处理 O(n) 时间 / O(n) 空间
-  预计算 left_max[i] 和 right_max[i] 数组 → 避免重复扫描
-
-Step 4: 单调栈 O(n) / O(n)
-  和 LC 84 同一模型: 维护单调递减栈
-  遇到比栈顶高的柱子时, 可以"横向填水"
-  → 弹出凹槽底部, 用左右墙高度算积水
-
-Step 5: 双指针 O(n) / O(1) ← 最优
-  关键洞察: 对于位置 i, 如果 left_max < right_max,
-  那 water[i] = left_max - height[i] (右边一定够高, 不用管)
-  → 双指针从两端往中间走, 总是移动较矮的一端
-```
-
-```cpp
-int trap(std::vector<int>& height) {
-    std::stack<int> stk;  // 存下标，对应高度单调递减
-    int water = 0;
-
-    for (int i = 0; i < static_cast<int>(height.size()); ++i) {
-        // 当前柱子比栈顶高 → 可以接水
-        while (!stk.empty() && height[i] > height[stk.top()]) {
-            int bottom = stk.top();  // 凹槽底部
-            stk.pop();
-
-            if (stk.empty()) break;  // 左边没有墙，接不住水
-
-            int left = stk.top();    // 左墙
-            int w = i - left - 1;    // 宽度
-            int h = std::min(height[left], height[i]) - height[bottom];  // 高度
-            water += w * h;
-        }
-
-        stk.push(i);
-    }
-    return water;
-}
-// 时间 O(n), 空间 O(n)
-```
-
-**图解推演**（`height = [0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1]`）：
-
-```
-遍历到 i=3 (h=2)：
-  栈顶 i=2 (h=0) < 2 → 凹槽！
-    bottom=0, left=1(h=1), right=3(h=2)
-    水 = (3-1-1) × (min(1,2)-0) = 1 × 1 = 1
-
-遍历到 i=7 (h=3)：
-  连续弹出多个凹槽，逐层计算积水
-  这就是单调栈"横向分层"计算的精髓
-
-总积水 = 6
-```
-
-**三种解法对比**：
-
-| 方法 | 时间 | 空间 | 思路 |
-|------|------|------|------|
-| 暴力（每个位置找左右最大值）| O(n²) | O(1) | 直观但慢 |
-| DP 预处理 | O(n) | O(n) | 预计算 left_max[] 和 right_max[] |
-| **单调栈** | O(n) | O(n) | 横向分层，遇到右墙时计算 |
-| 双指针 | O(n) | **O(1)** | 最优空间，但较难理解 |
-
-```cpp
-// 双指针解法（O(1) 空间）
-int trap_two_pointers(std::vector<int>& height) {
-    int left = 0, right = height.size() - 1;
-    int left_max = 0, right_max = 0;
-    int water = 0;
-
-    while (left < right) {
-        if (height[left] < height[right]) {
-            left_max = std::max(left_max, height[left]);
-            water += left_max - height[left];  // 被左右较矮的一侧限制
-            ++left;
-        } else {
-            right_max = std::max(right_max, height[right]);
-            water += right_max - height[right];
-            --right;
-        }
-    }
-    return water;
-}
-// 时间 O(n), 空间 O(1)
-```
-
-> 💡 **面试中的选择**：如果面试官没有具体要求，优先写单调栈解法——它和 LC 84 同一个模式，说明你对单调栈理解深刻。如果追问空间优化，再给出双指针版本。
-
-### 3.5.8 字符串解码 (LeetCode 394)
-
-> 给定编码字符串如 `"3[a2[c]]"`，返回解码字符串 `"accaccacc"`。
-
-**核心思路**：用**两个栈**——一个存数字（重复次数），一个存字符串（外层已累积的结果）。遇到 `[` 就把当前状态压栈，遇到 `]` 就弹栈拼接。
-
-```cpp
-std::string decodeString(const std::string& s) {
-    std::stack<int> num_stack;
-    std::stack<std::string> str_stack;
-    std::string current;
-    int num = 0;
-
-    for (char c : s) {
-        if (std::isdigit(c)) {
-            num = num * 10 + (c - '0');  // 处理多位数（如 "12[a]"）
-        }
-        else if (c == '[') {
-            // 保存当前状态
-            num_stack.push(num);
-            str_stack.push(current);
-            // 重置
-            num = 0;
-            current.clear();
-        }
-        else if (c == ']') {
-            // 弹出重复次数和外层字符串
-            int repeat = num_stack.top(); num_stack.pop();
-            std::string outer = str_stack.top(); str_stack.pop();
-
-            // 重复 current，拼到 outer 后面
-            for (int i = 0; i < repeat; ++i) {
-                outer += current;
-            }
-            current = std::move(outer);
-        }
-        else {
-            current += c;  // 普通字符直接累积
-        }
-    }
-    return current;
-}
-```
-
-**图解**（`"3[a2[c]]"`）：
-
-```
-c='3': num=3
-c='[': push(3, ""), num=0, current=""
-         num_stack: [3]  str_stack: [""]
-
-c='a': current="a"
-
-c='2': num=2
-c='[': push(2, "a"), num=0, current=""
-         num_stack: [3,2]  str_stack: ["","a"]
-
-c='c': current="c"
-
-c=']': pop(2, "a") → outer = "a" + "c"×2 = "acc"
-         current = "acc"
-         num_stack: [3]  str_stack: [""]
-
-c=']': pop(3, "") → outer = "" + "acc"×3 = "accaccacc"
-         current = "accaccacc"
-
-结果: "accaccacc" ✅
-```
-
-> 💡 **栈的嵌套性**：字符串解码的嵌套括号与函数调用的嵌套、括号匹配的嵌套本质相同——**每进入一层嵌套就压栈保存上下文，离开一层嵌套就弹栈恢复上下文**。"栈 = 嵌套结构的天然载体"。
+* **Q：如何有效防止递归引发的 Stack Overflow（栈溢出）？**
+  > **回答要点**：两类手段。一是将普通递归改写为**尾递归**（让编译器优化为跳转指令，复用栈帧）；二是利用**循环迭代配合用户态堆栈**（如 `std::vector`）显式模拟递归过程。系统栈空间默认通常仅几 MB（如 Linux 8MB，Windows 1MB），而堆内存可利用整机可用物理内存，彻底消除栈溢出风险。
 
 ---
 
-### 3.5.9 面试题速查表
+## P1：单调栈与经典技巧
 
-| 题号 | 题目 | 核心技巧 | 难度 |
-|------|------|----------|------|
-| LC 20 | 有效的括号 | 栈配对 | Easy |
-| LC 155 | 最小栈 | 辅助栈维护 min | Medium |
-| LC 150 | 逆波兰表达式求值 | 栈模拟计算 | Medium |
-| LC 232 | 用栈实现队列 | 双栈翻转 | Easy |
-| LC 225 | 用队列实现栈 | 双队列 / 单队列翻转 | Easy |
-| LC 739 | 每日温度 | **单调递减栈** | Medium |
-| LC 496 | 下一个更大元素 I | 单调栈 + 哈希 | Easy |
-| LC 503 | 下一个更大元素 II | 单调栈 + **循环遍历** | Medium |
-| LC 84 | 柱状图中最大矩形 | **单调递增栈** | Hard |
-| LC 85 | 最大矩形 | 逐行转化为 LC 84 | Hard |
-| LC 42 | 接雨水 | 单调栈 / 双指针 | Hard |
-| LC 71 | 简化路径 | 栈处理 `..` 和 `.` | Medium |
-| LC 394 | 字符串解码 | 双栈（数字栈 + 字符串栈） | Medium |
-| LC 32 | 最长有效括号 | 栈记录下标 | Hard |
+### 2.1 单调栈核心范式
+
+单调栈是指内部元素按照数值大小始终保持单调递增或单调递减的栈。
+* **核心应用场景**：在 **$O(n)$** 线性时间内，寻找数组中每个元素向左或向右**第一个比它大（或小）的元素**。
+* **工作机制**：遍历数组，当新元素破坏单调性时，不断弹出栈顶元素并结算结果，直至恢复单调性再压入当前元素。
+
+#### 典型模板：每日温度 (LeetCode 739)
+> 寻找右侧第一个比当前温度高的天数间隔。
+
+```cpp
+#include <vector>
+#include <stack>
+
+std::vector<int> dailyTemperatures(const std::vector<int>& temperatures) {
+    int n = temperatures.size();
+    std::vector<int> res(n, 0);
+    std::stack<int> st; // 单调递减栈，存下标
+
+    for (int i = 0; i < n; ++i) {
+        // 当前温度大于栈顶温度，说明找到了栈顶元素的下一个更高温度
+        while (!st.empty() && temperatures[i] > temperatures[st.top()]) {
+            int prev_idx = st.top();
+            st.pop();
+            res[prev_idx] = i - prev_idx;
+        }
+        st.push(i);
+    }
+    return res;
+}
+```
 
 ---
 
-## 3.6 🎮 实战场景
+### 2.2 经典算法题速查
 
-### 3.6.1 UI 层级管理 (UI Stack)
-
-任何有嵌套菜单的游戏（RPG 属性面板、背包系统、设置页），当玩家层层点击 `主菜单` → `装备栏` → `强化界面` 时，按 `ESC` 应该**逐层退出**。这就是典型的栈结构。
-
-```cpp
-// UI 面板的生命周期接口
-class UIPanel {
-public:
-    virtual ~UIPanel() = default;
-    virtual void OnEnter()  = 0;  // 首次进入（播放进场动画）
-    virtual void OnExit()   = 0;  // 被关闭（播放退场动画，释放资源）
-    virtual void OnPause()  = 0;  // 被新面板覆盖（失去焦点，停止接收输入）
-    virtual void OnResume() = 0;  // 上层面板关闭，重新获得焦点
-    virtual void OnUpdate(float dt) = 0;
-    virtual void OnRender() = 0;
-};
-
-class UIManager {
-    std::stack<std::unique_ptr<UIPanel>> _stack;
-
-public:
-    // 打开新面板 —— Push
-    void OpenPanel(std::unique_ptr<UIPanel> panel) {
-        if (!_stack.empty()) {
-            _stack.top()->OnPause();   // 当前面板失焦
-        }
-        panel->OnEnter();              // 新面板入场
-        _stack.push(std::move(panel));
-    }
-
-    // 关闭当前面板 —— Pop
-    void CloseCurrentPanel() {
-        if (_stack.empty()) return;
-
-        _stack.top()->OnExit();        // 当前面板退场
-        _stack.pop();                  // 销毁
-
-        if (!_stack.empty()) {
-            _stack.top()->OnResume();  // 下层面板恢复焦点
-        }
-    }
-
-    // 关闭所有面板（回到主界面）
-    void CloseAll() {
-        while (!_stack.empty()) {
-            _stack.top()->OnExit();
-            _stack.pop();
-        }
-    }
-
-    // 只更新/渲染栈顶面板（或者根据需求渲染多层）
-    void Update(float dt) {
-        if (!_stack.empty()) {
-            _stack.top()->OnUpdate(dt);
-        }
-    }
-
-    void Render() {
-        // 可以选择渲染所有层（半透明叠加效果）
-        // 简化版：只渲染栈顶
-        if (!_stack.empty()) {
-            _stack.top()->OnRender();
-        }
-    }
-
-    bool HasPanel() const { return !_stack.empty(); }
-    std::size_t Depth() const { return _stack.size(); }
-};
-```
-
-### 3.6.2 GameState Stack (游戏状态机嵌套)
-
-整个游戏的流转本身就是一个大号状态栈。不同于传统有限状态机（FSM）的 **"切换"**，状态栈支持 **"叠加"**——新状态压在旧状态上面，旧状态暂停但不销毁。
-
-```cpp
-class GameState {
-public:
-    virtual ~GameState() = default;
-    virtual void OnEnter()  = 0;
-    virtual void OnExit()   = 0;
-    virtual void OnPause()  = 0;
-    virtual void OnResume() = 0;
-    virtual void Update(float dt) = 0;
-    virtual void Render() = 0;
-};
-
-class GameStateManager {
-    std::stack<std::unique_ptr<GameState>> _states;
-
-public:
-    // 压入新状态（不销毁旧状态）
-    void PushState(std::unique_ptr<GameState> state) {
-        if (!_states.empty()) {
-            _states.top()->OnPause();
-        }
-        state->OnEnter();
-        _states.push(std::move(state));
-    }
-
-    // 弹出当前状态（恢复下层状态）
-    void PopState() {
-        if (_states.empty()) return;
-        _states.top()->OnExit();
-        _states.pop();
-        if (!_states.empty()) {
-            _states.top()->OnResume();
-        }
-    }
-
-    // 替换当前状态（弹出旧的 + 压入新的）
-    void ChangeState(std::unique_ptr<GameState> state) {
-        if (!_states.empty()) {
-            _states.top()->OnExit();
-            _states.pop();
-        }
-        state->OnEnter();
-        _states.push(std::move(state));
-    }
-
-    void Update(float dt) {
-        if (!_states.empty()) {
-            _states.top()->Update(dt);
-        }
-    }
-
-    // 渲染可以从底部往上全部渲染（实现半透明叠加）
-    void Render() {
-        // 简化：用临时容器逆序渲染
-        // 完整实现可以用 vector<GameState*> 替代 stack 来支持底层遍历
-        if (!_states.empty()) {
-            _states.top()->Render();
-        }
-    }
-};
-```
-
-**典型流程**：
-
-```
-[Boot] → PushState(MainMenu)
-         PushState(Loading)      // MainMenu.OnPause()
-         PopState()              // Loading 结束, MainMenu.OnResume()
-         ChangeState(InGame)     // MainMenu 被替换
-         PushState(PauseMenu)    // InGame.OnPause() — 暂停但不销毁
-                                 // 玩家能看到半透明暂停菜单下的游戏画面
-         PopState()              // PauseMenu 关闭, InGame.OnResume()
-```
-
-### 3.6.3 Undo / Redo 系统 (Command Pattern + 双栈)
-
-地图编辑器、关卡工具、策略游戏中的撤销/重做功能是游戏工具链的核心架构之一：
-
-```cpp
-// 命令接口 —— 每个可撤销的操作都是一个 Command
-class Command {
-public:
-    virtual ~Command() = default;
-    virtual void Execute() = 0;   // 执行
-    virtual void Undo() = 0;      // 撤销（执行逆操作）
-    virtual std::string Description() const = 0;
-};
-
-// ===== 具体命令示例：移动实体 =====
-class MoveEntityCommand : public Command {
-    Entity* _entity;
-    Vec2 _old_pos;
-    Vec2 _new_pos;
-
-public:
-    MoveEntityCommand(Entity* e, Vec2 new_pos)
-        : _entity(e), _old_pos(e->position), _new_pos(new_pos) {}
-
-    void Execute() override { _entity->position = _new_pos; }
-    void Undo() override    { _entity->position = _old_pos; }
-    std::string Description() const override {
-        return "Move " + _entity->name;
-    }
-};
-
-// ===== Undo/Redo 管理器 =====
-class UndoRedoManager {
-    std::stack<std::unique_ptr<Command>> _undo_stack;
-    std::stack<std::unique_ptr<Command>> _redo_stack;
-
-public:
-    void Execute(std::unique_ptr<Command> cmd) {
-        cmd->Execute();
-        _undo_stack.push(std::move(cmd));
-
-        // 关键：执行新操作后，redo 历史作废
-        while (!_redo_stack.empty()) _redo_stack.pop();
-    }
-
-    void Undo() {
-        if (_undo_stack.empty()) return;
-
-        auto cmd = std::move(_undo_stack.top());
-        _undo_stack.pop();
-        cmd->Undo();
-        _redo_stack.push(std::move(cmd));
-    }
-
-    void Redo() {
-        if (_redo_stack.empty()) return;
-
-        auto cmd = std::move(_redo_stack.top());
-        _redo_stack.pop();
-        cmd->Execute();
-        _undo_stack.push(std::move(cmd));
-    }
-
-    bool CanUndo() const { return !_undo_stack.empty(); }
-    bool CanRedo() const { return !_redo_stack.empty(); }
-};
-```
-
-**为什么用栈而不是 `std::list`？**
-
-第 2 章中提到了用 `std::list` + 迭代器实现 Undo/Redo（支持在中间位置操作）。两种方案各有侧重：
-
-| 维度 | 双栈 | list + 迭代器 |
-|------|------|---------------|
-| 复杂度 | 更简单，代码量少 | 更灵活，可以跳到任意历史点 |
-| 内存 | 栈弹出即释放 | 需要额外管理截断 |
-| 适用 | 标准 Undo/Redo | 需要历史分支的高级编辑器 |
-
-### 3.6.4 递归转迭代 —— 防止 Stack Overflow
-
-游戏引擎中，很多算法天然是递归的（DFS、场景树遍历、AI 行为树评估）。但线程的调用栈空间有限（Windows 默认 1MB，Linux 默认 8MB），递归深度过大会直接**崩溃**。
-
-**解决方案**：用**堆上的 `std::stack` 模拟调用栈**，手动管理"栈帧"。
-
-#### 示例：DFS 递归版 vs 迭代版
-
-```cpp
-// ========== 递归版 DFS（简洁但有栈溢出风险）==========
-void dfs_recursive(const std::vector<std::vector<int>>& graph,
-                   int node,
-                   std::vector<bool>& visited) {
-    visited[node] = true;
-    // process(node);
-
-    for (int neighbor : graph[node]) {
-        if (!visited[neighbor]) {
-            dfs_recursive(graph, neighbor, visited);  // 递归调用
-        }
-    }
-}
-
-// ========== 迭代版 DFS（手动栈，无栈溢出风险）==========
-void dfs_iterative(const std::vector<std::vector<int>>& graph,
-                   int start,
-                   std::vector<bool>& visited) {
-    std::stack<int> st;   // 堆上分配，几十 GB 空间
-    st.push(start);
-
-    while (!st.empty()) {
-        int node = st.top();
-        st.pop();
-
-        if (visited[node]) continue;
-        visited[node] = true;
-        // process(node);
-
-        // 注意：如果需要和递归版访问顺序完全一致，
-        // 要逆序压栈（让第一个邻居在栈顶）
-        for (auto it = graph[node].rbegin(); it != graph[node].rend(); ++it) {
-            if (!visited[*it]) {
-                st.push(*it);
-            }
-        }
-    }
-}
-```
-
-#### 示例：场景树遍历
-
-```cpp
-struct SceneNode {
-    std::string name;
-    std::vector<SceneNode*> children;
-};
-
-// 递归版——如果场景树有 10000 层就爆栈了
-void traverse_recursive(SceneNode* node) {
-    if (!node) return;
-    // process(node);
-    for (auto* child : node->children) {
-        traverse_recursive(child);
-    }
-}
-
-// 迭代版——安全
-void traverse_iterative(SceneNode* root) {
-    if (!root) return;
-
-    std::stack<SceneNode*> st;
-    st.push(root);
-
-    while (!st.empty()) {
-        SceneNode* node = st.top();
-        st.pop();
-        // process(node);
-
-        // 逆序压栈以保持遍历顺序
-        for (int i = static_cast<int>(node->children.size()) - 1; i >= 0; --i) {
-            st.push(node->children[i]);
-        }
-    }
-}
-```
-
-> 💡 **经验法则**：在游戏引擎中，任何涉及树/图遍历的代码，如果递归深度可能超过几百层，就应该改成迭代版。UE5 的渲染管线、Unity 的 Transform 层级遍历，底层都是迭代实现。
+| 题目 | 难度 | 核心思路 |
+| :--- | :--- | :--- |
+| **LC 20. 有效的括号** | Easy | 遇到左括号压入对应右括号；遇到右括号比对是否等于栈顶并弹出。 |
+| **LC 150. 逆波兰表达式求值** | Medium | 遇到数字压栈；遇到运算符弹出两个操作数（注意减法和除法的左右次序），计算结果压回栈。 |
+| **LC 739. 每日温度** | Medium | 单调递减栈存下标，当前元素大于栈顶时循环出栈并结算距离。 |
+| **LC 84. 柱状图中最大的矩形** | Hard | 单调递增栈，首尾补 0 作为哨兵。当前柱子变矮时出栈计算以被弹出高度为基准的最大矩形面积。 |
+| **LC 42. 接雨水** | Hard | 单调递减栈（按行结算积水）或双指针（按列结算积水）。 |
 
 ---
 
-## 3.7 本章小结
+## P2：工程实践与业务场景
 
-### 核心要点
+### 3.1 客户端与游戏 UI 导航栈 (UI Stack)
 
-| 概念 | 要点 |
-|------|------|
-| **LIFO** | 后进先出，只操作栈顶，push/pop/top 全 O(1) |
-| **`std::stack`** | 容器**适配器**，默认底层 `deque`，也支持 `vector`/`list` |
-| **为什么默认 deque** | 不像 vector 扩容全搬、不像 list 缓存差，折中最优 |
-| **pop() 不返回值** | C++ 异常安全设计：避免拷贝构造抛异常导致数据丢失 |
-| **单调栈** | 栈内保持单调，O(n) 解决"找两侧第一个更大/小元素"问题 |
-| **双栈** | 两个栈可以模拟队列（LC 232），也可以实现 Undo/Redo |
-| **递归的本质** | 系统调用栈 = 隐式的栈。手动栈 = 显式的栈，可防栈溢出 |
-
-### 面试 30 秒速答
-
-> **Q：什么是栈？**
->
-> A：受限的 LIFO 线性表，只允许在栈顶操作。Push / Pop / Top 都是 O(1)。核心应用：函数调用栈、括号匹配、DFS、单调栈。
-
-> **Q：`std::stack` 底层是什么？为什么选 deque？**
->
-> A：`std::stack` 是适配器，默认底层是 `deque`。选 `deque` 因为它分段连续，扩容时只需分配新 Buffer 块而**不搬老数据**（`vector` 会全量拷贝）；同时空闲块可以释放（`vector` 不主动释放），且比 `list` 缓存友好。
-
-> **Q：什么是单调栈？时间复杂度为什么是 O(n)？**
->
-> A：单调栈要求栈内元素保持递增或递减。当新元素破坏单调性时循环弹栈。虽然有嵌套循环，但**每个元素最多入栈一次、出栈一次**，总操作 2n 次，所以是 O(n)。常用于解决"找到每个元素左/右边第一个比它大/小的元素"类问题。
+在复杂界面系统中（如游戏菜单、设置、背包弹窗），UI 窗口的跳转遵循严格的压栈与回退：
+* 打开子弹窗：`push(Window)`，并根据策略隐藏或停用下层窗口。
+* 点击返回键：`pop()`，自动激活并刷新露出的上一级窗口。
 
 ---
 
-> 📖 下一章：[第四章 队列：先来后到的公平](../04_queue) —— 从 FIFO 到双端队列，从 BFS 层序遍历到滑动窗口最大值，再到游戏引擎的事件系统与渲染命令缓冲区。
+### 3.2 游戏状态机嵌套 (GameState Stack)
+
+游戏主循环经常需要暂停或叠加子状态：
+* 正常游戏运行处于 `PlayState`。
+* 玩家按下 ESC 打开暂停菜单：压入 `PauseState`，原 `PlayState` 暂停 `update()` 但继续执行 `render()` 作为毛玻璃背景。
+* 退出暂停：`PauseState` 弹出并销毁，无缝继续游戏，避免了状态的重置与重新加载。
+
+---
+
+### 3.3 双栈模式实现 Undo / Redo 系统
+
+图形软件与编辑器中的撤销/重做系统核心基于命令模式与双栈维护：
+* **`undo_stack`**：每次用户执行一个 Command，将其压入 Undo 栈，同时清空 Redo 栈。
+* **撤销 (Undo)**：从 `undo_stack` 弹出 Command，调用其 `unexecute()`，并将其压入 `redo_stack`。
+* **重做 (Redo)**：从 `redo_stack` 弹出 Command，调用其 `execute()`，并压回 `undo_stack`。
+
+---
+
+## P3：基础原理与参考实现
+
+### 4.1 复杂度速查与底层容器选型
+
+| 操作接口 | 时间复杂度 | 空间复杂度 | 对应底层操作 |
+| :--- | :--- | :--- | :--- |
+| `push()` | **$O(1)$ 均摊** | $O(1)$ | 底层容器 `push_back()` |
+| `pop()` | **$O(1)$** | $O(1)$ | 底层容器 `pop_back()` |
+| `top()` | **$O(1)$** | $O(1)$ | 底层容器 `back()` |
+| `empty()` / `size()` | **$O(1)$** | $O(1)$ | 底层容器元数据返回 |
+
+---
+
+### 4.2 手写定长数组栈参考实现
+
+<details>
+<summary>👉 查看基于原生数组的定长栈 (FixedStack) C++ 参考实现</summary>
+
+```cpp
+#include <array>
+#include <stdexcept>
+#include <cstddef>
+
+template <typename T, std::size_t Capacity>
+class FixedStack {
+    std::array<T, Capacity> _data;
+    std::size_t _top = 0; // 指向下一个空闲槽位
+
+public:
+    void push(const T& val) {
+        if (full()) throw std::overflow_error("Stack is full");
+        _data[_top++] = val;
+    }
+
+    void pop() {
+        if (empty()) throw std::underflow_error("Stack is empty");
+        --_top;
+    }
+
+    T& top() {
+        if (empty()) throw std::underflow_error("Stack is empty");
+        return _data[_top - 1];
+    }
+
+    const T& top() const {
+        if (empty()) throw std::underflow_error("Stack is empty");
+        return _data[_top - 1];
+    }
+
+    bool empty() const { return _top == 0; }
+    bool full() const { return _top == Capacity; }
+    std::size_t size() const { return _top; }
+};
+```
+</details>
+
+---
+
+> 📖 下一章：[第四章 队列：先进先出的管道](../04_queue/) —— 从循环队列到阻塞队列，从 BFS 广度优先搜索到游戏网络包调度。

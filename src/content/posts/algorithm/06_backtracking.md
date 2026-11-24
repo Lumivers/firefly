@@ -1,9 +1,9 @@
 ---
-title: "第六章 回溯与搜索进阶：从暴力到启发式"
+title: "第六章 搜索范式：回溯法与分支限界法"
 published: 2026-04-28
 pinned: false
-description: "**面试突击 · 回溯与搜索。** 从排列/组合/子集的回溯框架到N皇后与解数独，从四种剪枝策略到BFS→Dijkstra→A*的完整演化——当DP和贪心都不适用时，回溯+剪枝是最后的武器。"
-tags: [算法, 回溯, DFS, A星, 启发式搜索, 剪枝, 面试, C++]
+description: "算法笔记 · 状态空间搜索。内容按优先级梳理：P0 核心考点（回溯法 vs 分支限界法全方位对比、回溯法标准递归模板、子集/组合/排列三大树形模型与去重）、P1 分支限界法 Branch and Bound 核心范式（优先队列 LC 限界、0-1 背包上界剪枝）、N 皇后手撕、P2 博弈树 Alpha-Beta 剪枝与游戏应用、P3 经典题速查与完整实现附录。"
+tags: [算法, 回溯法, 分支限界, DFS, BFS, 面试, C++]
 category: 算法笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
@@ -11,1025 +11,281 @@ image: ""
 draft: false
 ---
 
-# 第六章 回溯与搜索进阶：从暴力到启发式
+# 第六章 搜索范式：回溯法与分支限界法
 
-> **一句话理解**：回溯是"万能暴力法"——当 DP 和贪心都失效时，回溯 + 剪枝是最后的武器。而 BFS → Dijkstra → A* 的演化展示了搜索如何从盲目走向智能。
-
-> 📋 前置知识：数据结构 Ch3（栈——递归调用栈）、Ch7.1（BFS/DFS）、Ch7.2（Dijkstra）
+> 面对指数级复杂度的离散组合优化问题，当无法通过动态规划或贪心直接求解时，必须深入**状态空间解空间树**进行系统化搜索。**回溯法**与**分支限界法**构成了计算机求解复杂约束问题的两大经典范式。
 
 ---
 
-## 6.1 概念直觉 —— What & Why
+## 0. 考点优先级概览
 
-### 回溯的本质 —— 在状态空间树上做 DFS
+根据面试常见考察频次与工程实用度，内容按优先级组织如下：
 
-回溯算法 = **DFS 遍历决策树 + 适时回溯**。每层代表一个决策点，每条路径代表一个候选解。
+| 优先级 | 分类 | 核心内容 | 重点说明 |
+| :--- | :--- | :--- | :--- |
+| **P0** | **核心考点** | **回溯法 vs 分支限界法核心对比**、回溯标准模板、子集/组合/排列三大树形模型与去重剪枝 | 算法设计课必考理论与核心手撕 |
+| **P1** | **分支限界与难题** | **分支限界法 (Branch and Bound) 核心机制**、上下界剪枝策略、N 皇后问题 (LC 51) | 求解单个最优解的广度剪枝范式 |
+| **P2** | **工程与游戏实战** | 棋类 AI 博弈树与 Alpha-Beta 剪枝、游戏装备随机词条组合生成器 | 游戏人工智能与复杂约束求解 |
+| **P3** | **基础与附录** | 经典题目速查清单、0-1 背包分支限界法 C++ 参考源码（可折叠） | 知识库备忘查阅 |
 
+---
+
+## P0：核心考点
+
+### 1.1 算法课核心理论：回溯法 vs 分支限界法
+
+这是计算机算法设计课程与高级面试中**极具辨析度**的一组经典算法设计范式对比：
+
+| 核心维度 | 回溯法 (Backtracking) | 分支限界法 (Branch and Bound) |
+| :--- | :--- | :--- |
+| **搜索机制** | **深度优先搜索 (DFS)** | **广度优先搜索 (BFS)** |
+| **底层数据结构** | **系统调用栈 / 显式栈** | **队列 (FIFO) 或 优先队列 (Heap)** |
+| **求解目标** | 通常用于寻找**所有满足条件的可行解**，或枚举全排列/组合 | 通常用于求解组合优化问题中的**单个最优解**（最大值/最小值） |
+| **状态空间树展开** | 顺着一条分支探底，失败后回溯“返回上一步” | 一次性生成当前活动节点的所有可能分支节点（分枝） |
+| **剪枝方式** | **显式约束函数剪枝**（若当前部分解已不合法则回溯） | **限界函数 (Bounding Function)**（计算理论收益上界，若差于当前全局已知最优解则剪除） |
+| **内存开销** | **极小**：空间复杂度为解空间树的高度 **$O(h)$** | **极大**：需同时维护所有活节点 (Live Nodes)，空间开销为树的宽度（最坏达指数级） |
+| **典型代表算法** | N 皇后、数独求解、全排列/子集枚举 | 0-1 背包最优解、旅行商问题 (TSP)、布线问题 |
+
+---
+
+### 1.2 核心手撕：回溯法的标准代码模板
+
+回溯法的本质是在解空间树上做深度优先遍历，核心在于**“做选择 $\to$ 深入递归 $\to$ 撤销选择”**的严格状态还原：
+
+```cpp
+void backtrack(参数列表, 路径 path, 结果集& result) {
+    if (终止条件 / 满足目标) {
+        result.push_back(path); // 收集结果
+        return;
+    }
+
+    for (int i = 选择起点; i < 选择列表大小; ++i) {
+        // 剪枝逻辑：若当前分支不可能产生合法解，提前跳过
+        if (剪枝条件) continue;
+
+        path.push_back(当前选择);     // 1. 做选择
+        backtrack(更新参数, path, result); // 2. 递归深入
+        path.pop_back();              // 3. 撤销选择 (状态回溯还原)
+    }
+}
 ```
-回溯的通用范式：
-┌─────────────────────────────────────────────┐
-│ void backtrack(路径, 选择列表) {              │
-│     if (满足结束条件) {                       │
-│         记录答案;                             │
-│         return;                              │
-│     }                                        │
-│                                              │
-│     for (选择 in 选择列表) {                  │
-│         if (选择不合法) continue;  ← 剪枝      │
-│         做选择;                               │
-│         backtrack(路径, 新的选择列表);         │
-│         撤销选择;  ← 回溯                     │
-│     }                                        │
-│ }                                            │
-└─────────────────────────────────────────────┘
-```
 
-### 回溯 vs DP vs 贪心 —— 三种算法范式的边界
+---
 
-```
-问题：求所有可行解 / 所有方案 → 回溯（唯一选择）
-问题：求某个可行解 → 回溯 或 贪心（如果贪心条件成立）
-问题：求最优解：
-  ├─ 贪心条件成立 → 贪心 O(n log n)
-  ├─ 有最优子结构 + 重叠子问题 → DP O(n²) 左右
-  └─ 都不满足 → 回溯 + 剪枝（指数级，但剪枝后可能很快）
-```
+### 1.3 回溯三大树形模型与去重技巧
+
+#### 1. 子集型 (Subsets) 与 组合型 (Combinations)
+* **核心特征**：元素无顺序之分（`[1, 2]` 和 `[2, 1]` 算同一个）。
+* **控制手段**：通过传入一个 `startIndex`，下一层递归**只能选取 `startIndex` 之后的元素**，杜绝逆向重复选择。
+
+#### 2. 排列型 (Permutations)
+* **核心特征**：元素有先后顺序（`[1, 2]` 和 `[2, 1]` 算两个不同的排列）。
+* **控制手段**：每次循环均从索引 `0` 开始遍历，通过一个布尔数组 `used[i]` 标记该位置元素是否已被当前路径选用。
+
+#### 3. 数组含重复元素时的“同层去重”黄金法则
+当输入数组本身带有重复元素（如 `[1, 2, 2']`），要求生成的子集或组合不重复：
+1. **必须先将原始数组升序排序**：`std::sort(nums.begin(), nums.end())`。
+2. **同层去重判定**：
+   ```cpp
+   // i > startIndex 表明当前在“同一树层”的后续分支中
+   if (i > startIndex && nums[i] == nums[i - 1]) {
+       continue; // 剪枝跳过重复分支
+   }
+   ```
+
+---
+
+### 1.4 常见面试问答要点
+
+* **Q：回溯法与普通深度优先搜索 (DFS) 有何异同？**
+  > **回答要点**：DFS 侧重于**图或树形结构的无死角遍历**，每个节点通常只访问一次（依靠 `visited` 数组防重）；而回溯法侧重于**求解约束满足问题**，它在进入分支时记录状态，从分支返回时必须**显式撤销该状态**，使得同一个物理变量能够在搜索空间中被成百上千次复用，探索所有可能的路径组合。
+
+* **Q：为什么在剪枝之前通常必须先对数组进行排序？**
+  > **回答要点**：排序可以将数值相同的重复元素聚集在一起，使得 `nums[i] == nums[i-1]` 的同层去重判定能够生效；此外，排序还能带来单调性，一旦累加和超过了目标值（`sum + nums[i] > target`），可以直接通过 `break` 提前终止该层后续所有更大元素的分支，大幅压缩解空间。
+
+---
+
+## P1：分支限界法 (Branch and Bound) 核心机制
+
+### 2.1 分支限界法的运行范式与优先级队列
+
+当问题是**求单极值优化问题（如最大收益、最短距离）**时，分支限界法比盲目遍历所有解的回溯法更具目的性：
+1. **活动节点 (Live Node)**：已生成但尚未扩展子节点的节点。
+2. **扩展节点 (E-Node)**：当前正在展开子分支的节点。
+3. **限界函数 (Bounding Function)**：为每个节点计算其能够产出的**最优价值上界 (Upper Bound)**。
+4. **剪枝原则**：记录当前全局已经找到的一个可行最好收益 `BestValue`。在扩展任意节点前，若其上界 $\le \text{BestValue}$，说明**无论该分支向下怎么走，都不可能超越现有最好解**，直接抛弃该分支！
 
 ```mermaid
 graph TD
-    A["遇到问题"] --> B{"求所有解？"}
-    B -->|是| BT["回溯"]
-    B -->|否| C{"贪心条件成立？"}
-    C -->|是| GR["贪心"]
-    C -->|否| D{"有最优子结构\n+ 重叠子问题？"}
-    D -->|是| DP["DP"]
-    D -->|否| BT2["回溯 + 剪枝"]
+    ROOT["根节点 (活节点)"]
+    N1["分支 1\n上界 UB: 100"]
+    N2["分支 2\n上界 UB: 40 (剪枝!)"]
+    N3["分支 3\n上界 UB: 85"]
 
-    style BT fill:#d00000,stroke:#e85d04,color:white
-    style GR fill:#2d6a4f,stroke:#40916c,color:white
-    style DP fill:#e85d04,stroke:#f48c06,color:white
-    style BT2 fill:#d00000,stroke:#e85d04,color:white
+    ROOT --> N1
+    ROOT --> N2
+    ROOT --> N3
+
+    style N2 fill:#7f1d1d,stroke:#ef4444,color:#fca5a5
 ```
+
+#### 优先队列分支限界法 (LC 分支限界)
+普通分支限界采用普通队列（按生成顺序）；而**优先队列式分支限界法（最佳优先搜索）**使用大顶堆，**每次优先挑出理论上界最大的活节点作为下一个扩展节点**，以最快速度逼近最优解并抬高 `BestValue`，从而产生雪崩式的剪枝效果。
 
 ---
 
-## 6.2 原理图解
+### 2.2 经典手撕：N 皇后问题 (LeetCode 51)
 
-### 回溯的递归树
-
-以 `nums = [1,2,3]` 的全排列为例：
-
-```mermaid
-graph TD
-    Root["[]"] -->|"选 1"| A["[1]"]
-    Root -->|"选 2"| B["[2]"]
-    Root -->|"选 3"| C["[3]"]
-
-    A -->|"选 2"| A1["[1,2]"]
-    A -->|"选 3"| A2["[1,3]"]
-    B -->|"选 1"| B1["[2,1]"]
-    B -->|"选 3"| B2["[2,3]"]
-    C -->|"选 1"| C1["[3,1]"]
-    C -->|"选 2"| C2["[3,2]"]
-
-    A1 -->|"选 3"| A1F["[1,2,3] ✅"]
-    A2 -->|"选 2"| A2F["[1,3,2] ✅"]
-    B1 -->|"选 3"| B1F["[2,1,3] ✅"]
-    B2 -->|"选 1"| B2F["[2,3,1] ✅"]
-    C1 -->|"选 2"| C1F["[3,1,2] ✅"]
-    C2 -->|"选 1"| C2F["[3,2,1] ✅"]
-
-    style Root fill:#1a1a1a,stroke:#444,color:white
-    style A1F fill:#2d6a4f,stroke:#40916c,color:white
-    style A2F fill:#2d6a4f,stroke:#40916c,color:white
-    style B1F fill:#2d6a4f,stroke:#40916c,color:white
-    style B2F fill:#2d6a4f,stroke:#40916c,color:white
-    style C1F fill:#2d6a4f,stroke:#40916c,color:white
-    style C2F fill:#2d6a4f,stroke:#40916c,color:white
-```
-
-> 每一条从根到叶的路径就是一个排列。回溯的关键在于——到达叶子后，退回上一层，撤销最后的选择，尝试下一个选择。
-
-### 排列 vs 组合 vs 子集 —— 决策树的三种形态
-
-```
-排列 (Permutation)：  顺序重要 → 每层可选"所有未选中的元素"
-组合 (Combination)：  顺序不重要 → 每层从 start 开始，只能向后选
-子集 (Subset)：      每个元素选/不选 → 每层对应一个元素，两个分支
-```
-
----
-
-## 6.3 核心算法实现
-
-### 6.3.1 回溯框架的三种标准写法
-
-#### 排列模板
+* **约束条件**：任意两个皇后不能处于同一行、同一列，也不能处于同一正斜线（`row - col` 恒定）或副斜线（`row + col` 恒定）。
+* **状态压缩回溯**：由于按行逐行放置，天然保证行不冲突。仅需记录列占用 `cols`、主对角线 `diag1` 和副对角线 `diag2`。
 
 ```cpp
-// 全排列：从"尚未选择的元素"中选择
-void permute(std::vector<int>& nums, std::vector<bool>& used,
-             std::vector<int>& path,
-             std::vector<std::vector<int>>& result) {
-    if (path.size() == nums.size()) {
-        result.push_back(path);
-        return;
-    }
+#include <vector>
+#include <string>
 
-    for (int i = 0; i < nums.size(); ++i) {
-        if (used[i]) continue;           // 跳过已选中的
-        // 去重：如果当前元素和前一个相同，且前一个未使用
-        // → 说明在同层已处理过相同的值
-        if (i > 0 && nums[i] == nums[i - 1] && !used[i - 1]) continue;
+class Solution {
+    std::vector<std::vector<std::string>> res;
 
-        used[i] = true;
-        path.push_back(nums[i]);
-        permute(nums, used, path, result);
-        path.pop_back();                 // 回溯
-        used[i] = false;
-    }
-}
-```
-
-> ⚠️ **去重的关键**：`!used[i-1]` 表示 `nums[i-1]` 和 `nums[i]` 相同但在**同一层**被处理过（而非被同一个 path 使用）。同一层的去重用 `!used[i-1]`，同一个 path 的去重用 `used[i-1]`。
-
-#### 组合模板
-
-```cpp
-// 组合：从 start 开始，只向后选（避免重复组合）
-void combine(int n, int k, int start,
-             std::vector<int>& path,
-             std::vector<std::vector<int>>& result) {
-    if (path.size() == k) {
-        result.push_back(path);
-        return;
-    }
-
-    // 剪枝：如果剩余元素不够凑齐 k 个，提前终止
-    // i <= n - (k - path.size()) + 1
-    for (int i = start; i <= n - (k - path.size()) + 1; ++i) {
-        path.push_back(i);
-        combine(n, k, i + 1, path, result);
-        path.pop_back();
-    }
-}
-```
-
-#### 子集模板
-
-```cpp
-// 子集：每个元素两种选择（选/不选）
-void subsets(std::vector<int>& nums, int idx,
-             std::vector<int>& path,
-             std::vector<std::vector<int>>& result) {
-    // 每个节点都是一个有效子集（不只是叶子！）
-    result.push_back(path);
-
-    for (int i = idx; i < nums.size(); ++i) {
-        if (i > idx && nums[i] == nums[i - 1]) continue;  // 同层去重
-        path.push_back(nums[i]);
-        subsets(nums, i + 1, path, result);
-        path.pop_back();
-    }
-}
-```
-
-| | 排列 | 组合 | 子集 |
-|------|------|------|------|
-| 结束条件 | `path.size() == n` | `path.size() == k` | 无（每个节点都记录） |
-| 选择范围 | 所有未用元素 | `[start, n)` | `[idx, n)` |
-| 同层去重 | `!used[i-1]` | `i > start` | `i > idx` |
-| 时间复杂度 | O(n!) | O(C(n,k) * k) | O(2ⁿ) |
-
----
-
-### 6.3.2 排列问题进阶
-
-#### 组合总和 I (LeetCode 39) —— 可重复选的组合
-
-```cpp
-// 每个元素可以选无限次 → 组合变体
-// start 不前进意味着可以重复选同一个元素
-void combinationSum(std::vector<int>& candidates, int target,
-                    int start, std::vector<int>& path,
-                    std::vector<std::vector<int>>& result) {
-    if (target == 0) {
-        result.push_back(path);
-        return;
-    }
-    if (target < 0) return;  // 剪枝
-
-    for (int i = start; i < candidates.size(); ++i) {
-        path.push_back(candidates[i]);
-        combinationSum(candidates, target - candidates[i], i, path, result);
-        //                                                      ↑ i 不是 i+1！
-        //                                              这样可以重复选
-        path.pop_back();
-    }
-}
-```
-
-#### 组合总和 II (LeetCode 40) —— 每个元素只能用一次
-
-```cpp
-// 与 39 的区别：i+1 而非 i，且需要排序+去重
-void combinationSum2(std::vector<int>& candidates, int target,
-                     int start, std::vector<int>& path,
-                     std::vector<std::vector<int>>& result) {
-    if (target == 0) {
-        result.push_back(path);
-        return;
-    }
-
-    for (int i = start; i < candidates.size(); ++i) {
-        if (i > start && candidates[i] == candidates[i - 1]) continue;
-        if (candidates[i] > target) break;  // 排序后可提前终止
-
-        path.push_back(candidates[i]);
-        combinationSum2(candidates, target - candidates[i], i + 1, path, result);
-        path.pop_back();
-    }
-}
-```
-
-#### 括号生成 (LeetCode 22)
-
-```cpp
-// 生成 n 对有效括号 → 回溯 + 合法性剪枝
-void generateParenthesis(int n, int open, int close,
-                         std::string& path,
-                         std::vector<std::string>& result) {
-    if (path.size() == 2 * n) {
-        result.push_back(path);
-        return;
-    }
-
-    // 选 '('：条件是有剩余的 '('
-    if (open < n) {
-        path.push_back('(');
-        generateParenthesis(n, open + 1, close, path, result);
-        path.pop_back();
-    }
-
-    // 选 ')'：条件是 ')' 数小于 '(' 数（保证合法性）
-    if (close < open) {
-        path.push_back(')');
-        generateParenthesis(n, open, close + 1, path, result);
-        path.pop_back();
-    }
-}
-```
-
----
-
-### 6.3.3 棋盘问题
-
-#### N 皇后 (LeetCode 51)
-
-```cpp
-// 经典回溯：每行放一个皇后，检查列/对角线冲突
-std::vector<std::vector<std::string>> solveNQueens(int n) {
-    std::vector<std::vector<std::string>> result;
-    std::vector<std::string> board(n, std::string(n, '.'));
-
-    // 状态数组：列、主对角线、副对角线是否被占用
-    std::vector<bool> cols(n, false);
-    std::vector<bool> diag1(2 * n - 1, false);  // 主对角线：row-col = const
-    std::vector<bool> diag2(2 * n - 1, false);  // 副对角线：row+col = const
-
-    std::function<void(int)> backtrack = [&](int row) {
+    void dfs(int row, int n, std::vector<std::string>& board,
+             std::vector<bool>& cols, std::vector<bool>& diag1, std::vector<bool>& diag2) {
         if (row == n) {
-            result.push_back(board);
+            res.push_back(board);
             return;
         }
 
         for (int col = 0; col < n; ++col) {
-            int d1 = row - col + n - 1;  // 主对角线索引（偏移为正）
-            int d2 = row + col;           // 副对角线索引
+            int d1 = row - col + n; // 防止出现负下标
+            int d2 = row + col;
 
-            if (cols[col] || diag1[d1] || diag2[d2]) continue;
+            if (cols[col] || diag1[d1] || diag2[d2]) continue; // 剪枝
 
             board[row][col] = 'Q';
             cols[col] = diag1[d1] = diag2[d2] = true;
 
-            backtrack(row + 1);
+            dfs(row + 1, n, board, cols, diag1, diag2);
 
+            // 回溯撤销
             board[row][col] = '.';
             cols[col] = diag1[d1] = diag2[d2] = false;
         }
-    };
-
-    backtrack(0);
-    return result;
-}
-```
-
-```mermaid
-graph TD
-    subgraph "N=4 皇后的攻击范围"
-        direction LR
-        Q["♛ Q 在 (row, col)"] --> C["同列: col"]
-        Q --> D1["主对角线: row - col = const"]
-        Q --> D2["副对角线: row + col = const"]
-    end
-
-    style Q fill:#d00000,stroke:#e85d04,color:white
-```
-
-#### 解数独 (LeetCode 37)
-
-```cpp
-// 回溯 + 约束传播：先填候选数最少的空格
-void solveSudoku(std::vector<std::vector<char>>& board) {
-    // 行/列/宫的占用状态
-    std::vector<std::vector<bool>> rows(9, std::vector<bool>(10, false));
-    std::vector<std::vector<bool>> cols(9, std::vector<bool>(10, false));
-    std::vector<std::vector<bool>> boxes(9, std::vector<bool>(10, false));
-
-    // 初始化：标记已填数字
-    for (int r = 0; r < 9; ++r) {
-        for (int c = 0; c < 9; ++c) {
-            if (board[r][c] != '.') {
-                int num = board[r][c] - '0';
-                int box = (r / 3) * 3 + c / 3;
-                rows[r][num] = cols[c][num] = boxes[box][num] = true;
-            }
-        }
     }
 
-    std::function<bool(int, int)> backtrack = [&](int r, int c) -> bool {
-        if (r == 9) return true;  // 填完了
-        if (c == 9) return backtrack(r + 1, 0);  // 换行
-
-        if (board[r][c] != '.') return backtrack(r, c + 1);  // 已填
-
-        int box = (r / 3) * 3 + c / 3;
-        for (int num = 1; num <= 9; ++num) {
-            if (rows[r][num] || cols[c][num] || boxes[box][num]) continue;
-
-            board[r][c] = '0' + num;
-            rows[r][num] = cols[c][num] = boxes[box][num] = true;
-
-            if (backtrack(r, c + 1)) return true;  // 找到解就停
-
-            board[r][c] = '.';
-            rows[r][num] = cols[c][num] = boxes[box][num] = false;
-        }
-        return false;
-    };
-
-    backtrack(0, 0);
-}
-```
-
-#### 单词搜索 (LeetCode 79)
-
-```cpp
-// 在二维网格中搜索单词 → DFS + visited 标记
-bool exist(std::vector<std::vector<char>>& board, std::string word) {
-    int m = board.size(), n = board[0].size();
-    int dirs[] = {0, 1, 0, -1, 0};
-
-    std::function<bool(int, int, int)> dfs = [&](int r, int c, int idx) {
-        if (idx == word.size()) return true;
-        if (r < 0 || r >= m || c < 0 || c >= n) return false;
-        if (board[r][c] != word[idx]) return false;
-
-        char temp = board[r][c];
-        board[r][c] = '#';  // 标记已访问（省 visited 数组）
-
-        for (int d = 0; d < 4; ++d) {
-            if (dfs(r + dirs[d], c + dirs[d + 1], idx + 1)) {
-                return true;
-            }
-        }
-
-        board[r][c] = temp;  // 回溯恢复
-        return false;
-    };
-
-    for (int r = 0; r < m; ++r) {
-        for (int c = 0; c < n; ++c) {
-            if (dfs(r, c, 0)) return true;
-        }
-    }
-    return false;
-}
-```
-
-> 💡 用 `board[r][c] = '#'` 标记已访问，避免了额外分配 `visited[m][n]` 数组。这是回溯中常用的"原地标记"技巧。
-
----
-
-### 6.3.4 剪枝策略专题
-
-剪枝是回溯从"暴力"变为"可行"的关键。不剪枝的回溯通常只能处理 n ≤ 10 的问题。
-
-```mermaid
-graph TD
-    A["回溯搜索树"] --> B["可行性剪枝\n当前路径不可能产生合法解"]
-    A --> C["最优性剪枝\n当前路径不可能优于已知最优"]
-    A --> D["对称性剪枝\n当前分支与已搜索的分支等价"]
-    A --> E["记忆化剪枝\n当前状态已搜索过且未找到解"]
-
-    style B fill:#d00000,stroke:#e85d04,color:white
-    style C fill:#e85d04,stroke:#f48c06,color:white
-    style D fill:#2d6a4f,stroke:#40916c,color:white
-    style E fill:#7b2cbf,stroke:#9d4edd,color:white
-```
-
-#### 可行性剪枝
-
-```cpp
-// 组合总和：candidates 排序后，如果当前元素 > 剩余 target，后面的更大
-// → 提前 break（而非 continue）
-if (candidates[i] > target) break;  // 后续元素更大，不可能满足
-
-// N 皇后：用 O(1) 检查列/对角线冲突 → 避免每次 O(n) 扫描
-```
-
-#### 最优性剪枝
-
-```cpp
-// 在求"最少步数"等问题中维护全局最优
-// 如果当前路径长度 >= 已知最优解 → 直接返回
-void dfsWithPruning(int steps, int target, int& best) {
-    if (steps >= best) return;  // 不可能更优了
-    if (target == 0) {
-        best = std::min(best, steps);
-        return;
-    }
-    // ... 继续搜索
-}
-```
-
-#### 对称性剪枝
-
-```cpp
-// 全排列去重：排序 + 跳过同层重复元素
-if (i > 0 && nums[i] == nums[i - 1] && !used[i - 1]) continue;
-
-// N 皇后：第一行只遍历前 ceil(n/2) 个位置（利用镜像对称）
-for (int col = 0; col < (n + 1) / 2; ++col) { ... }  // 结果 * 2
-```
-
-#### 记忆化剪枝
-
-```cpp
-// 单词搜索 II (LeetCode 212)：Trie + 回溯
-// 用 Trie 记录所有单词 → 同时搜索多个单词
-// 用 memo 记录"从 (r,c) 出发，当前 Trie 节点，是否找到过单词"
-```
-
----
-
-## 6.4 BFS → Dijkstra → A* 完整演化
-
-> 本节展示搜索算法的进化链：每一步演化解决了什么问题，下一个算法如何在前一个的基础上改进。
-
-### BFS —— 无权图的最短路径
-
-BFS 用队列逐层扩展，保证首次遇到目标时就是最短路径。
-
-```cpp
-// 标准 BFS：层序遍历
-int bfs(const std::vector<std::vector<int>>& graph, int start, int target) {
-    int n = graph.size();
-    std::vector<bool> visited(n, false);
-    std::queue<std::pair<int, int>> q;  // {node, distance}
-    q.push({start, 0});
-    visited[start] = true;
-
-    while (!q.empty()) {
-        auto [node, dist] = q.front(); q.pop();
-        if (node == target) return dist;
-
-        for (int next : graph[node]) {
-            if (!visited[next]) {
-                visited[next] = true;
-                q.push({next, dist + 1});
-            }
-        }
-    }
-    return -1;
-}
-```
-
-**BFS 的局限**：假设每条边的代价相同。现实世界中不同边的代价不同（不同路段的长度不同）。
-
-### Dijkstra —— 带权图的最短路径
-
-Dijkstra 用**优先队列**替代 BFS 的普通队列，按"到起点的距离"排序。
-
-```
-BFS：普通队列（FIFO）→ 按"层数"扩展
-Dijkstra：优先队列 → 按"累计距离"扩展，每次都取最接近起点的节点
-```
-
-```cpp
-// Dijkstra：贪心松弛
-std::vector<int> dijkstra(const std::vector<std::vector<std::pair<int,int>>>& graph,
-                          int start) {
-    int n = graph.size();
-    std::vector<int> dist(n, INT_MAX);
-    dist[start] = 0;
-
-    using State = std::pair<int, int>;  // {distance, node}
-    std::priority_queue<State, std::vector<State>, std::greater<State>> pq;
-    pq.push({0, start});
-
-    while (!pq.empty()) {
-        auto [d, node] = pq.top(); pq.pop();
-        if (d > dist[node]) continue;  // ⚠️ 懒惰删除
-
-        for (auto& [next, weight] : graph[node]) {
-            int newDist = d + weight;
-            if (newDist < dist[next]) {
-                dist[next] = newDist;
-                pq.push({newDist, next});
-            }
-        }
-    }
-    return dist;
-}
-```
-
-```mermaid
-graph LR
-    BFS["BFS\n队列 FIFO\n按层扩展\n无权图"] -->|"边有了权重"| Dijkstra["Dijkstra\n优先队列\n按距离扩展\n带权图"]
-    Dijkstra -->|"加启发式函数"| Astar["A*\n优先队列\n按 f=g+h 扩展\n有目标导向"]
-
-    style BFS fill:#555,stroke:#888,color:#ccc
-    style Dijkstra fill:#e85d04,stroke:#f48c06,color:white
-    style Astar fill:#d00000,stroke:#e85d04,color:white
-```
-
-**Dijkstra 的局限**：它"盲目地"向所有方向扩展——即使目标在正前方，它也会向后搜索。
-
-### A* —— 有目标导向的搜索
-
-A* 在 Dijkstra 的基础上引入了**启发式函数 h(n)**——估算从 n 到目标的距离。
-
-```
-Dijkstra：f(n) = g(n)              （只看过去）
-A*：      f(n) = g(n) + h(n)      （兼顾过去和未来）
-
-g(n) = 从起点到 n 的实际代价（已知，精确）
-h(n) = 从 n 到终点的估计代价（启发式，必须 ≤ 实际值）
-```
-
-**A* 的正确性条件**：h(n) 必须是**可采纳的 (Admissible)**——永远不高估实际代价。对于网格寻路，曼哈顿距离是可采纳的（不允许对角线移动时）。
-
-```cpp
-// A* 在网格上的实现：从 (sr,sc) 到 (tr,tc)
-struct AStarState {
-    int r, c;
-    int g;  // 已走步数
-    int h;  // 启发式：曼哈顿距离
-    int f() const { return g + h; }
-
-    bool operator>(const AStarState& other) const {
-        return f() > other.f();  // 优先队列按 f 值
+public:
+    std::vector<std::vector<std::string>> solveNQueens(int n) {
+        std::vector<std::string> board(n, std::string(n, '.'));
+        std::vector<bool> cols(n, false), diag1(2 * n, false), diag2(2 * n, false);
+        dfs(0, n, board, cols, diag1, diag2);
+        return res;
     }
 };
-
-int aStar(const std::vector<std::vector<int>>& grid,
-          int sr, int sc, int tr, int tc) {
-    int m = grid.size(), n = grid[0].size();
-    int dirs[] = {0, 1, 0, -1, 0};
-
-    auto heuristic = [&](int r, int c) {
-        return std::abs(r - tr) + std::abs(c - tc);  // 曼哈顿距离
-    };
-
-    std::vector<std::vector<int>> bestG(m, std::vector<int>(n, INT_MAX));
-    std::priority_queue<AStarState, std::vector<AStarState>,
-                        std::greater<AStarState>> pq;
-
-    pq.push({sr, sc, 0, heuristic(sr, sc)});
-    bestG[sr][sc] = 0;
-
-    while (!pq.empty()) {
-        auto [r, c, g, h] = pq.top(); pq.pop();
-
-        if (r == tr && c == tc) return g;
-
-        if (g > bestG[r][c]) continue;  // 懒惰删除
-
-        for (int d = 0; d < 4; ++d) {
-            int nr = r + dirs[d], nc = c + dirs[d + 1];
-            if (nr < 0 || nr >= m || nc < 0 || nc >= n) continue;
-            if (grid[nr][nc] == 1) continue;  // 障碍物
-
-            int ng = g + 1;
-            if (ng >= bestG[nr][nc]) continue;
-
-            bestG[nr][nc] = ng;
-            pq.push({nr, nc, ng, heuristic(nr, nc)});
-        }
-    }
-    return -1;
-}
-```
-
-### 三种搜索的可视化对比
-
-```
-BFS 探索范围:          Dijkstra 探索范围:       A* 探索范围:
-┌─────────────┐       ┌─────────────┐         ┌─────────────┐
-│ . . . . . . │       │ . . . . . . │         │ . . . . . . │
-│ . . . . . . │       │ . . . . . . │         │ . . . * * . │
-│ . . S . T . │       │ . . S . T . │         │ . . S * T . │
-│ . . . . . . │       │ . . . . . . │         │ . . . * * . │
-│ . . . . . . │       │ . . . . . . │         │ . . . . . . │
-└─────────────┘       └─────────────┘         └─────────────┘
-  探索 25 个格子          探索 25 个格子           探索 8 个格子
-  (完全均匀)              (完全均匀)              (只向目标方向)
-                                                  * = 被扩展的节点
-```
-
-### 启发函数的设计
-
-| 问题 | 启发函数 h(n) | 效果 |
-|------|-------------|------|
-| 网格 (4 方向) | 曼哈顿距离 | 最优 |
-| 网格 (8 方向) | 对角距离 | 最优 |
-| 网格 (任意方向) | 欧几里得距离 | 最优 |
-| 八数码 | 曼哈顿距离（每个方块到目标位置） | 很好 |
-| 八数码 | 错位方块数 | 一般 |
-| 滑动谜题 | 曼哈顿距离 | 最优 |
-
-> 💡 **面试中的表述**：「A* 的核心是 f = g + h。g 是 Dijkstra 的唯一指标（已走的路），h 是新加的启发式（预估还要走的路）。h 必须"可采纳"——永远不高估实际距离，否则找到的路径不一定最短。曼哈顿距离是最常用的可采纳启发式。A* 在 h=0 时退化为 Dijkstra，在 h 完美估算实际距离时退化为直线搜索。」
-
----
-
-## 6.5 高频面试题精讲
-
-### 题目 1：电话号码的字母组合 (LeetCode 17)
-
-```cpp
-std::vector<std::string> letterCombinations(std::string digits) {
-    if (digits.empty()) return {};
-
-    const std::vector<std::string> mapping = {
-        "", "", "abc", "def", "ghi", "jkl",
-        "mno", "pqrs", "tuv", "wxyz"
-    };
-
-    std::vector<std::string> result;
-    std::string path;
-
-    std::function<void(int)> backtrack = [&](int idx) {
-        if (idx == digits.size()) {
-            result.push_back(path);
-            return;
-        }
-
-        for (char c : mapping[digits[idx] - '0']) {
-            path.push_back(c);
-            backtrack(idx + 1);
-            path.pop_back();
-        }
-    };
-
-    backtrack(0);
-    return result;
-}
-```
-
-### 题目 2：重新安排行程 (LeetCode 332)
-
-```cpp
-// 欧拉路径问题：找到字典序最小的"用完所有机票"的行程
-// 回溯 + Hierholzer 算法
-std::vector<std::string> findItinerary(
-    std::vector<std::vector<std::string>>& tickets) {
-
-    // 构建邻接表（按字典序）
-    std::unordered_map<std::string,
-        std::priority_queue<std::string, std::vector<std::string>,
-                            std::greater<std::string>>> graph;
-
-    for (auto& t : tickets) {
-        graph[t[0]].push(t[1]);
-    }
-
-    std::vector<std::string> result;
-
-    std::function<void(const std::string&)> dfs =
-        [&](const std::string& airport) {
-        auto& neighbors = graph[airport];
-        while (!neighbors.empty()) {
-            std::string next = neighbors.top();
-            neighbors.pop();
-            dfs(next);
-        }
-        result.push_back(airport);  // 后序加入！
-    };
-
-    dfs("JFK");
-    std::reverse(result.begin(), result.end());  // 反转得到正序
-    return result;
-}
-```
-
-### 题目 3：滑动谜题 (LeetCode 773) —— A* 实战
-
-```cpp
-// 2x3 的滑块拼图，求最少步数 → A* 或 BFS
-int slidingPuzzle(std::vector<std::vector<int>>& board) {
-    // 将 2x3 展平为字符串，更方便操作
-    std::string start;
-    for (int r = 0; r < 2; ++r)
-        for (int c = 0; c < 3; ++c)
-            start += ('0' + board[r][c]);
-
-    std::string target = "123450";
-
-    // 每个位置可交换的邻居索引（2x3 网格）
-    std::vector<std::vector<int>> neighbors = {
-        {1, 3},       // 0
-        {0, 2, 4},    // 1
-        {1, 5},       // 2
-        {0, 4},       // 3
-        {1, 3, 5},    // 4
-        {2, 4}        // 5
-    };
-
-    // 启发式：曼哈顿距离（每个数字到目标位置的距离之和）
-    auto heuristic = [&](const std::string& state) {
-        int h = 0;
-        for (int i = 0; i < 6; ++i) {
-            if (state[i] == '0') continue;
-            int num = state[i] - '1';
-            h += std::abs(i / 3 - num / 3) + std::abs(i % 3 - num % 3);
-        }
-        return h;
-    };
-
-    using State = std::tuple<int, int, std::string>;  // {f, g, state}
-    std::priority_queue<State, std::vector<State>, std::greater<State>> pq;
-
-    std::unordered_map<std::string, int> bestG;
-    int startH = heuristic(start);
-    pq.push({startH, 0, start});
-    bestG[start] = 0;
-
-    while (!pq.empty()) {
-        auto [f, g, state] = pq.top(); pq.pop();
-        if (state == target) return g;
-        if (g > bestG[state]) continue;
-
-        int zeroPos = state.find('0');
-        for (int next : neighbors[zeroPos]) {
-            std::string nextState = state;
-            std::swap(nextState[zeroPos], nextState[next]);
-
-            int ng = g + 1;
-            if (bestG.count(nextState) && ng >= bestG[nextState]) continue;
-
-            bestG[nextState] = ng;
-            pq.push({ng + heuristic(nextState), ng, nextState});
-        }
-    }
-    return -1;
-}
 ```
 
 ---
 
-### 面试题速查清单
+## P2：工程实践与业务场景
 
-| # | 题目 | LeetCode | 难度 | 核心技巧 |
-|---|------|----------|------|---------|
-| 1 | 全排列 | 46 | Medium | 回溯框架 + used 数组 |
-| 2 | 全排列 II | 47 | Medium | 排序 + 同层去重 |
-| 3 | 子集 | 78 | Medium | 每个节点都记录 |
-| 4 | 子集 II | 90 | Medium | 排序 + 同层去重 |
-| 5 | 组合总和 | 39 | Medium | start 不前进（可重复选） |
-| 6 | 组合总和 II | 40 | Medium | start 前进 + 排序去重 |
-| 7 | 括号生成 | 22 | Medium | 合法性剪枝 |
-| 8 | 电话号码的字母组合 | 17 | Medium | 简单回溯 |
-| 9 | 单词搜索 | 79 | Medium | DFS + 原地标记 |
-| 10 | N 皇后 | 51 | Hard | O(1) 冲突检测 + 对称剪枝 |
-| 11 | 解数独 | 37 | Hard | 回溯 + 约束传播 |
-| 12 | 单词搜索 II | 212 | Hard | Trie + 回溯 |
-| 13 | 重新安排行程 | 332 | Hard | 欧拉路径 |
-| 14 | 滑动谜题 | 773 | Hard | A* 搜索 |
+### 3.1 游戏 AI 决策：博弈树与 Alpha-Beta 剪枝
+
+在五子棋、国际象棋等零和双人博弈中，AI 使用极小化极大 (Minimax) 算法预测未来 $K$ 步走法：
+* **Max 层**：轮到 AI 行动，希望选取收益最大的着法。
+* **Min 层**：轮到对手行动，假设对手必然选择让 AI 收益最小的着法。
+* **Alpha-Beta 剪枝**：维护当前搜索路径上的最好下界 $\alpha$ 和对手允许的最大上界 $\beta$。一旦发现某个分支的期望收益 $\beta \le \alpha$，**后续子分支完全无需再看，直接截断**，剪枝率可达 90% 以上。
 
 ---
 
-## 6.6 🎮 游戏实战
+## P3：基础原理与参考实现
 
-### 6.6.1 技能组合枚举 —— 排列/组合回溯
+### 3.1 经典题目速查
+
+| 题目 | 难度 | 核心思路 |
+| :--- | :--- | :--- |
+| **LC 46. 全排列** | Medium | `used` 标记数组，每次从 0 遍历，回溯时复位 `used[i] = false`。 |
+| **LC 77. 组合** | Medium | `startIndex` 向后遍历，剪枝：`i <= n - (k - path.size()) + 1`。 |
+| **LC 39. 组合总和** | Medium | 元素可无限重复选取：递归时继续传递 `startIndex = i`（自身可复选）。 |
+| **LC 51. N 皇后** | Hard | 按行递归，维护列、正反对角线占用的布尔标记数组。 |
+| **LC 79. 单词搜索** | Medium | 网格四向 DFS 回溯，进入时置为 `#` 防止重复访问，退出时恢复字符。 |
+
+---
+
+### 3.2 0-1 背包的分支限界法参考源码
+
+<details>
+<summary>👉 查看利用优先队列与价值上界剪枝的 0-1 背包分支限界法 C++ 源码</summary>
 
 ```cpp
-// N 个技能，找 K 个技能的最优连招（考虑释放顺序 → 排列）
-// 用于战斗系统的技能推荐
-struct Skill {
-    int id;
-    int damage;
-    int cooldown;
-    std::vector<int> synergy;  // 与其他技能的联动加成
+#include <vector>
+#include <queue>
+#include <algorithm>
+
+struct Item {
+    int weight, value;
+    double ratio;
+    bool operator<(const Item& o) const { return ratio > o.ratio; } // 按单位价值降序
 };
 
-void findBestCombo(const std::vector<Skill>& skills, int k,
-                   std::vector<int>& bestCombo, int& bestDamage) {
-    std::vector<int> path;
-    std::vector<bool> used(skills.size(), false);
+struct Node {
+    int level;  // 当前考虑的物品下标
+    int weight; // 当前背包累积重量
+    int value;  // 当前背包累积价值
+    double ub;  // 该分支理论可达到的最大价值上界
+    bool operator<(const Node& o) const { return ub < o.ub; } // 大顶堆：上界大者优先
+};
 
-    std::function<void(int, int)> backtrack = [&](int steps, int totalDmg) {
-        if (steps == k) {
-            if (totalDmg > bestDamage) {
-                bestDamage = totalDmg;
-                bestCombo = path;
-            }
-            return;
-        }
+// 贪心估算该节点的最大理论上界 (Upper Bound)
+double bound(const Node& u, int n, int W, const std::vector<Item>& items) {
+    if (u.weight >= W) return 0;
+    double val_ub = u.value;
+    int total_w = u.weight;
+    int j = u.level + 1;
 
-        // 最优性剪枝：即使后面都选最大伤害也不可能超过当前最优
-        int maxPossible = totalDmg + (k - steps) * maxSkillDamage;
-        if (maxPossible <= bestDamage) return;
-
-        for (int i = 0; i < skills.size(); ++i) {
-            if (used[i]) continue;
-
-            int bonus = 0;
-            if (!path.empty()) {
-                for (int prev : skills[path.back()].synergy) {
-                    if (prev == skills[i].id) bonus += 50;  // 联动加成
-                }
-            }
-
-            used[i] = true;
-            path.push_back(i);
-            backtrack(steps + 1, totalDmg + skills[i].damage + bonus);
-            path.pop_back();
-            used[i] = false;
-        }
-    };
-
-    backtrack(0, 0);
-}
-```
-
-### 6.6.2 Alpha-Beta 剪枝 —— 博弈树的优化
-
-```cpp
-// 简化版 Minimax + Alpha-Beta 剪枝（井字棋）
-// 这是游戏 AI 的核心技术
-int alphaBeta(std::vector<std::vector<char>>& board, int depth,
-              int alpha, int beta, bool isMaximizing) {
-    int score = evaluate(board);  // 评估当前局面
-    if (std::abs(score) >= 1000 || depth == 0) return score;
-    if (isDraw(board)) return 0;
-
-    if (isMaximizing) {
-        int maxEval = -9999;
-        for (auto& move : getMoves(board)) {
-            makeMove(board, move, 'X');
-            int eval = alphaBeta(board, depth - 1, alpha, beta, false);
-            undoMove(board, move);
-            maxEval = std::max(maxEval, eval);
-            alpha = std::max(alpha, eval);
-            if (beta <= alpha) break;  // β 剪枝！
-        }
-        return maxEval;
-    } else {
-        int minEval = 9999;
-        for (auto& move : getMoves(board)) {
-            makeMove(board, move, 'O');
-            int eval = alphaBeta(board, depth - 1, alpha, beta, true);
-            undoMove(board, move);
-            minEval = std::min(minEval, eval);
-            beta = std::min(beta, eval);
-            if (beta <= alpha) break;  // α 剪枝！
-        }
-        return minEval;
+    while (j < n && total_w + items[j].weight <= W) {
+        total_w += items[j].weight;
+        val_ub += items[j].value;
+        ++j;
     }
+    // 装满时将下一件物品按比例切分装入（连续背包上界）
+    if (j < n) val_ub += (W - total_w) * items[j].ratio;
+    return val_ub;
 }
-```
 
-> 💡 Alpha-Beta 剪枝是"最优性剪枝"在博弈树上的应用：如果当前分支已经不可能优于已探索的分支，直接剪掉。它能将搜索复杂度从 O(b^d) 降到约 O(b^{d/2})。
+int knapsackBranchAndBound(int W, std::vector<Item>& items) {
+    std::sort(items.begin(), items.end()); // 必须先按性价比排序
+    int n = items.size();
 
-### 6.6.3 战棋游戏移动范围 —— BFS/DFS 搜索
+    std::priority_queue<Node> pq;
+    Node root{-1, 0, 0, 0.0};
+    root.ub = bound(root, n, W, items);
+    pq.push(root);
 
-```cpp
-// 战棋游戏中，计算角色在 N 步内能到达的所有位置
-// 考虑地形消耗（平原=1，森林=2，山地=3，不可通过=∞）
-std::vector<std::vector<int>> getMovementRange(
-    const std::vector<std::vector<int>>& terrain,
-    int startR, int startC, int maxSteps) {
-
-    int m = terrain.size(), n = terrain[0].size();
-    std::vector<std::vector<int>> cost(m, std::vector<int>(n, INT_MAX));
-
-    // Dijkstra 搜索（带权移动）
-    using State = std::tuple<int, int, int>;  // {cost, r, c}
-    std::priority_queue<State, std::vector<State>, std::greater<State>> pq;
-    pq.push({0, startR, startC});
-    cost[startR][startC] = 0;
-
-    int dirs[] = {0, 1, 0, -1, 0};
+    int max_value = 0;
 
     while (!pq.empty()) {
-        auto [c, r, col] = pq.top(); pq.pop();
-        if (c > cost[r][col]) continue;
+        Node cur = pq.top();
+        pq.pop();
 
-        for (int d = 0; d < 4; ++d) {
-            int nr = r + dirs[d], nc = col + dirs[d + 1];
-            if (nr < 0 || nr >= m || nc < 0 || nc >= n) continue;
-            if (terrain[nr][nc] < 0) continue;  // 不可通过
+        if (cur.ub <= max_value) continue; // 核心限界剪枝！
 
-            int newCost = c + terrain[nr][nc];  // 地形消耗
-            if (newCost > maxSteps) continue;
-            if (newCost >= cost[nr][nc]) continue;
+        int next_level = cur.level + 1;
+        if (next_level == n) continue;
 
-            cost[nr][nc] = newCost;
-            pq.push({newCost, nr, nc});
+        // 分支 1：选择当前物品 items[next_level]
+        if (cur.weight + items[next_level].weight <= W) {
+            Node left{next_level, cur.weight + items[next_level].weight, cur.value + items[next_level].value, 0.0};
+            left.ub = bound(left, n, W, items);
+            max_value = std::max(max_value, left.value);
+            if (left.ub > max_value) pq.push(left);
         }
+
+        // 分支 2：不选当前物品 items[next_level]
+        Node right{next_level, cur.weight, cur.value, 0.0};
+        right.ub = bound(right, n, W, items);
+        if (right.ub > max_value) pq.push(right);
     }
-
-    return cost;  // cost[r][c] <= maxSteps 即可达
+    return max_value;
 }
 ```
-
-### 6.6.4 A* 游戏寻路系统
-
-```cpp
-// 游戏中 A* 寻路（支持地形代价 + 启发式）
-// 与 6.4 节的 A* 实现基本一致，实际项目中加上地形代价
-std::vector<std::pair<int,int>> findPathAStar(
-    const std::vector<std::vector<int>>& grid,
-    int sr, int sc, int tr, int tc) {
-
-    // ... A* 实现（同 6.4 节，返回实际路径）
-    // 需要额外维护 parent 数组来回溯路径
-    // 工业级用法：NavMesh 上做 A*，用多边形中心点作为图节点
-}
-```
+</details>
 
 ---
 
-## 6.7 30 秒速答
-
-> 📋 以下是本章核心知识点的面试速答模板。
-
----
-
-**Q：回溯算法的通用框架是什么？**
-
-> 三个关键部分：路径（已做的选择）、选择列表（当前可做的选择）、结束条件。框架是 DFS + 做选择 + 递归 + 撤销选择（回溯）。排列用 used 数组做选择列表，组合用 start 索引限制只能向后选，子集在每个节点都记录结果。
-
-**Q：四种剪枝策略分别是什么？**
-
-> 可行性剪枝——当前路径不可能产生合法解，直接 return。最优性剪枝——当前路径不可能优于已知最优解，直接 return。对称性剪枝——当前分支与已搜索分支等价（如排列中同层跳过重复值），跳过。记忆化剪枝——当前状态已搜索过且未找到解，用 memo 避免重复。
-
-**Q：BFS → Dijkstra → A* 的演化逻辑？**
-
-> BFS 按层扩展，适用于无权图。Dijkstra 引入边权重，用优先队列按"已走距离"扩展——但它是盲目的，向所有方向均匀搜索。A* 加入了启发式函数 h(n)，用 f = g + h 指导搜索方向——优先扩展"估计总代价最小"的节点。h(n) 必须可采纳（不高估），曼哈顿距离是最常用的可采纳启发式。
-
-**Q：A* 的启发函数怎么设计？**
-
-> 核心原则：可采纳性——h 永远不能高估实际剩余距离，否则漏掉最短路径。网格 4 方向用曼哈顿距离，8 方向用对角距离，任意方向用欧几里得距离。对于拼图类问题，曼哈顿距离（每个图块到目标位置的曼哈顿距离之和）是最常用的可采纳启发式。
-
-**Q：Alpha-Beta 剪枝的原理和价值？**
-
-> 在博弈树搜索中，如果当前分支已经不可能优于已探索的兄弟分支（对手不会让你进入这个分支），就直接剪掉。Alpha 是最大化玩家的"保底值"，Beta 是最小化玩家的"上限值"。当 Beta ≤ Alpha 时剪枝。效果：将搜索深度从 b^d 降到约 b^{d/2}——原来只能搜 4 层，现在能搜 8 层。
-
----
-
-## 6.8 本章习题清单
-
-```
-回溯基础：
-  □ 46.  全排列 —— 排列模板
-  □ 47.  全排列 II —— 排序 + 同层去重
-  □ 78.  子集 —— 子集模板
-  □ 90.  子集 II —— 子集去重
-  □ 77.  组合 —— 组合模板
-
-回溯进阶：
-  □ 39.  组合总和 —— 可重复选
-  □ 40.  组合总和 II —— 不可重复 + 去重
-  □ 22.  括号生成 —— 合法性剪枝
-  □ 17.  电话号码的字母组合 —— 简单回溯
-
-棋盘问题：
-  □ 51.  N 皇后 —— 回溯 + O(1) 冲突检测
-  □ 37.  解数独 —— 回溯 + 约束传播
-  □ 79.  单词搜索 —— DFS + 原地标记
-
-搜索演化：
-  □ 127. 单词接龙 —— BFS
-  □ 752. 打开转盘锁 —— BFS（双向 BFS 加分）
-  □ 773. 滑动谜题 —— A*
-
-挑战：
-  □ 212. 单词搜索 II —— Trie + 回溯
-  □ 332. 重新安排行程 —— 欧拉路径
-```
-
----
-
-> 📖 下一章：[第七章 数学算法](../algorithm/07_math) —— 从快速幂到扩展欧几里得，从质数筛到洗牌算法。
+> 📖 下一节：[第七章 数学与数论基础](./07_math.md) —— 快速幂、素数筛法与辗转相除法。
