@@ -127,6 +127,7 @@ void TargetDetector::sortQuadCorners(std::vector<cv::Point2f>& corners) {
     corners = hull;
 
     // 2. 寻找距离图像原点 (0, 0) 最近的点作为左上角起算点
+    // (注：适用于小倾角正向放置道具；若道具在赛场存在较大角度的菱形偏转，可结合长宽比或额外标记锁定唯一朝向)
     int top_left_idx = 0;
     float min_dist_sq = 1e9f;
     for (int i = 0; i < 4; ++i) {
@@ -478,6 +479,8 @@ int main(int argc, char** argv) {
     while (is_running) {
         // 3. 从双缓冲队列获取最新鲜的一帧 (零拷贝接管所有权)
         if (!frame_buffer.getLatest(current_frame)) {
+            // 无新帧时让出 CPU 休眠 1ms，避免空转自旋导致 CPU 单核 100% 满载发热
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
             continue;
         }
 
@@ -596,6 +599,9 @@ target_link_libraries(prop_vision_node PRIVATE
     Threads::Threads
 )
 ```
+
+> **为什么 `add_executable` 中没有包含 `SerialPort.cpp` 和 `PingPongFrameBuffer.cpp`？**  
+> 因为在前置章节中，`PingPongFrameBuffer.hpp` 与 `SerialPort.hpp` 均采用 **Header-only（头文件内联实现）** 的方式编写，所有类成员函数均直接在头文件内定义，因此无需在 CMakeLists.txt 中单独添加对应的 `.cpp` 源文件。
 
 一键构建运行：
 ```bash

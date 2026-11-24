@@ -2,8 +2,8 @@
 title: "感知与定位流水线"
 published: 2026-07-26
 pinned: false
-description: "上位机位姿需求、里程计累积误差与上位机责任、激光 SLAM 的赛场现实、DT35 与 AprilTag 打点重定位、OpenCV 与 YOLO 视觉流水线、感知降级链设计。"
-tags: [定位, 里程计, imu, slam, yolo, opencv, 相机标定, dt35, 视觉, 冗余设计, 教程]
+description: "上位机位姿需求、里程计累积误差、赛场为什么不用激光 SLAM、激光测距打挡板与靠墙校准、OpenCV/YOLO 视觉与像素闭环、感知降级策略。"
+tags: [定位, 里程计, imu, 激光测距, dt35, yolo, opencv, 视觉, 赛场经验, 教程]
 category: RC上位机
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
@@ -11,25 +11,24 @@ image: ""
 draft: false
 ---
 
-> 上一章我们打通了双线程消息总线，决策系统已经随时待命。但决策和运动控制都需要一个最根本的输入：机器人在场地的什么位置？目标物块又在什么位置？这一章我们把感知与定位流水线讲透。
-// 虽然但是赛场上基本上没有apriltag。所以这个我也感觉不用写？然后关于第六章，sleep有一个迫不得已的情况下写的，就是电控没有写回调函数。我发出去没有回复的这种情况。即使我不想写sleep也不得不写。
+> 上一章我们把双线程消息总线搭好了，决策系统随时待命。但决策和运动控制都需要一个最根本的输入：机器人在场地的什么位置？目标物块又在什么位置？这一章我们把赛场上真正实用的感知与定位做法捋清楚。
 
 # 上位机到底需要什么数据？
 
-在进入具体传感器之前，我们先厘清上位机对感知数据的核心诉求。感知层不负责做动作决策，它的唯一职责就是：**把传感器采集到的原始数据，加工成上层可直接使用的、低延迟且干净的数据**。
+在看具体传感器之前，先搞清楚上位机对感知数据的具体需求。感知层不需要去想下一步怎么走，它的任务就是把传感器的数据处理干净，交给控制层和决策层：
 
-| 消费方 | 需要的数据 | 核心用途 |
+| 消费方 | 需要的数据 | 主要用途 |
 |---|---|---|
-| **控制跟踪层** (Pure Pursuit) | 全局位姿 \((x, y, \theta)\)、线速度与角速度 \((v_x, v_y, \omega)\) | 寻找前瞻路径点、闭环解算底盘速度与转向角 |
-| **决策调度层** (FSM) | 目标物块坐标、到位确认、视觉识别结果 | 触发战术转移、判定取物目标、切换比赛阶段 |
+| **控制跟踪层** (Pure Pursuit) | 全局坐标 \((x, y, \theta)\)、线速度与角速度 | 寻找路径前瞻点、闭环计算底盘速度和旋转 |
+| **决策调度层** (FSM) | 目标物块位置、工位到位状态、视觉识别结果 | 触发状态转移、判断是否开始抓取、切换流程 |
 
-注意这两者的本质区别：**控制层要的是连续、高频（50Hz~100Hz）、无跳变的平滑位姿；而决策层要的是离散、稳定、经过滤噪确认的语义信息。**
+这两边的需求差别很大：**控制层要的是连续、高频（一般 50Hz~100Hz）、没有跳变的平滑坐标；而决策层要的是稳定、经过防抖和确认的离散信息。**
 
 ---
 
 # 里程计：从哪来，到哪去？
 
-上一章在串口协议中，我们定义了下位机上报的反馈包 `ReceivePacket`：
+在上一章的串口协议中，下位机上报的包里有这么几个字段：
 
 ```python
 current_x: float    # 当前 X 坐标 (m)
@@ -37,272 +36,189 @@ current_y: float    # 当前 Y 坐标 (m)
 current_yaw: float  # 当前偏航角 (rad)
 ```
 
-作为上位机开发，你首先要搞清楚一件事情：**机械和电控怎么去量底盘位移（不管是驱动轮编码器、还是底盘底下装了专门的测程轮、还是板载 IMU 陀螺仪），那是机械和电控的活。电控在下位机里做高频积分，把算好的全局坐标通过串口发上来，上位机拿到直接用。**
+作为上位机开发，首先要明确职责分工：**机械和电控怎么去算底盘位移（是用电机编码器、专门的下压测程轮，还是板载 IMU 陀螺仪），那是下位机的活。电控在单片机里高频积分，把算出来的全局坐标通过串口发上来，上位机直接拿来用。**
 
-上位机真正要关心的问题是：**这个里程计到底可不可信？会漂成什么样？上位机该怎么给它擦屁股？**
+上位机真正要面对的问题是：**里程计一定会漂，怎么给它校准？**
 
-### 里程计的本质：相对积分与累积误差
+### 里程计的累积误差
 
-里程计是靠时间累积积分算出来的（Dead Reckoning）。它的最大优点是**更新极快（100Hz+）、平滑、无延迟、几乎不占上位机算力**。
+里程计是靠相对位移累加积分出来的。它的好处是更新极快（100Hz+）、平滑、不需要上位机算力。
 
-但它的致命缺陷是**累积误差**：
-- 底盘急加速或急刹车，轮子与地面微小打滑；
-- 赛场地毯接缝、微小凹凸导致的颠簸；
-- 哪怕每 10 毫秒只有 0.1 毫米的微小误差，积分跑下来也会越积越大。
+但它也有无法避免的累积误差：
+- 底盘急起急停时，轮子和地毯之间会有微小打滑；
+- 场地地毯拼缝、地面不平时引起的车身微小颠簸；
+- 陀螺仪自身的温漂和微小零飘。
 
-```
-跑 1 圈（20m）：漂 2 ~ 5cm
-跑 5 圈（100m）：漂 10 ~ 30cm
-跑 10 圈（200m）：漂 30 ~ 80cm
-```
+平时跑两三米可能误差只有一两厘米，看不大出来；但如果在赛场上连续折返跑几十米，误差就可能累积到十几厘米甚至更多。如果机械爪抓取的容差只有两三厘米，纯靠里程计硬撑肯定会抓空。
 
-> **我 26 赛季的经验**：
-> 我 26 赛季用的就是纯里程计。在短距离作业下（跑几米到十几米），里程计误差完全在厘米级，只要速度规划得当，根本不用担心会偏。
-> 但如果你的赛题需要大范围长距离折返、跑几十米以上，或者机械爪对物块的对准要求达到了毫米级，纯靠里程计硬撑就会出事。这时候，**上位机必须负责引入绝对参考系，做打点重定位校正**。
+所以整体策略很明确：**长距离移动靠里程计推算，到了关键工位，上位机必须找参照物做打点校正（Relocalization）。**
 
 ---
 
-# 激光 SLAM：为什么我们最后没上？
+# 为什么赛场上一般不上全套激光 SLAM？
 
-> 很多机器人教材会给你长篇大论分析 ICP/NDT 点云匹配、对称环境退化、动态人员遮挡等学术缺点。但如果你问我当时为什么在实车上没上全套激光 SLAM，真实原因其实特别简单：**第一，备赛时间严重落后，根本没时间调；第二，当时板子算力吃紧，跑全套建图和匹配极其吃力；第三，我是纯软件开发的学生，我负责的主要是决策层方面的东西。所以**
+很多刚开始做车的人可能会想：既然里程机会漂，为什么不装个激光雷达，跑一套 2D 激光 SLAM（比如 Cartographer 或 Gmapping）来定位？
 
-如果你也在纠结要不要给比赛车上全套激光 SLAM，不妨从参赛工程的角度算三笔账：
+如果是在未知大环境或者室内服务机器人场景，激光 SLAM 确实是标配。但在 Robocon / RC 这种对抗赛场上，大部分队伍最后都没上全套 SLAM，主要原因很现实：
 
-1. **时间账：调 SLAM 的时间成本太高**  
-   配雷达驱动、建图、调粒子滤波、解各种偶发定位飘移，没几个星期根本调不扎实。在 Robocon 这种 deadline 极度紧迫的比赛里，上位机最重要的任务是**尽快把全场战术流程跑通**。如果把大把时间陷在底层建图定位里，导致留给上层机构联调和战术测试的时间只剩几天，最后往往得不偿失。
+1. **赛场环境很容易让雷达丢定位**  
+   比赛场地通常只有十几米长宽，四周的挡板往往只有三四十厘米高。雷达安装高度稍微高一点，扫出去的光束就会打到场外走动的裁判、工作人员和观众，产生大量动态噪点；如果打空了，又会丢失回波。而且赛场四周通常是平整的长直挡板，缺乏明显的几何角点特征，点云匹配很容易在长直墙方向发生“退化”（分不清自己具体在长墙的哪一段）。
+2. **调车与维护的时间成本过高**  
+   配雷达驱动、建图、调粒子滤波、解决偶发性跳点，往往需要耗费大量时间。备赛期最紧迫的是尽快把整车机械臂动作和全场跑位跑通。如果在底层 SLAM 上卡几个星期，现场一旦开机重定位失败或者跳点，整台车就会完全停摆。
+3. **已知小场地有更划算的解法**  
+   赛场尺寸在规则手册里是完全已知的。在已知固定场地里，用简单的距离传感器打点校准，开发成本低得多，确定性也高得多。
 
-2. **算力与稳定性账**  
-   激光点云匹配非常吃 CPU 单核算力和内存带宽。如果上位机算力紧张，雷达节点一旦把 CPU 占满，就会导致串口收发抖动、视觉丢帧甚至整个节点卡死。在 3 分钟争分夺秒的赛场上，多一个复杂节点就多一个故障点。
-
-3. **赛题场景账：杀鸡何必用牛刀**  
-   SLAM 的核心价值是解决“未知大场景”下的自主建图与定位。但 Robocon 赛场是一个只有 12m × 15m 的标准封闭小场地，场地边界和尺寸在规则手册里写得清清楚楚。在已知的小环境里，用全套 SLAM 去定一个点，从工程 ROI（投入产出比）来看其实非常低。
-
-所以当时我们果断止损：**放弃全套激光 SLAM，采用“电控里程计主力推算 + 关键工位传感器打点校准”**。电控通过底盘编码器做高频相对积分，上位机在到达目标工位时用简单的传感器（比如 DT35 测距或视觉标记）打一下绝对参考系，立刻把累积误差抹平。
-
-这套方案不仅三天就能调完上线，而且全场运行具有极高的确定性。这也是为什么接下来两节，我会把重点放在 DT35 和 AprilTag 上——因为这是最适合赛道实战、开发成本最低且极其稳妥的做法。
+所以更成熟一点的工程方案是：**电控里程计主力推算 + 到关键工位用传感器打点校准**。
 
 ---
 
-# 绝对打点重定位：DT35 激光测距与 AprilTag
+# 赛场实用的打点重定位方案
 
-既然里程计有微小的累积误差，我们要怎么抹平它？
+既然不用激光 SLAM，怎么抹平里程计的累积误差？
 
-核心原则只有一句话：**长距离靠里程计推算，到工位用固定参考物打点校正（Relocalization）。**
+先提一嘴 AprilTag：有些开源机器人教程会教用相机识别场地周围贴的 AprilTag 标签来定位。但在实际比赛里，**赛场围挡是公用的，裁判不会给场地贴 Tag，队伍自己也不允许往赛场上乱贴标记**。所以这种方案在实战中基本用不上。
 
-### 方案 A：DT35 激光测距精校正
+在真实赛场上，简单好用的方案通常是以下两种：
 
-DT35 是一种高精度的工业激光测距传感器，打在挡板上的重复测量精度可以达到毫米级。
+### 方案 1：激光测距传感器打已知挡板
+
+DT35 或者其他工业级激光测距传感器打在平整挡板上的测量精度可以达到毫米级。传感器装在车身侧面或正前方，对准已知的场地外沿挡板。
 
 ```
      赛场挡板 (已知全局坐标 X_wall = 4.000m)
   ════════════════════════════════════════════
              ▲
              │ 真实测距值 d = 0.520m
-             │ (DT35 激光束打在墙上)
          ┌───┴───┐
-         │ DT35  │
+         │ 激光探头│
          ├───────┤
          │ 机器人 │ 里程计当前值: x_odom = 3.465m
-         └───────┘ 真实绝对位置: x_real = 4.000 - 0.520 = 3.480m
-                   里程计漂移量: err = 3.480 - 3.465 = +0.015m (15mm)
+         └───────┘ 实际位置: x_real = 4.000 - 0.520 = 3.480m
+                   里程计误差: err = 3.480 - 3.465 = +0.015m (15mm)
 ```
 
-小车通过里程计导航跑到工位附近后，DT35 测出距挡板的真实距离，反算出全局绝对位置，上位机一次性修正偏差，把累积的 15 毫米漂移彻底抹平。
+小车通过里程计跑到工位附近后，停稳读一下激光测距值，反算出当前在全局坐标里的实际位置，然后上位机把这个差值补偿进当前坐标，就把累积的漂移抹平了。
 
-结合上一章的 `robocon-fsm`，在状态机中实现一个原子校正动作：
+一个简单的校正函数示例：
 
 ```python
-async def dt35_correct_position(fsm, act, blackboard, target_wall_x=4.0):
+async def dt35_correct_x(fsm, blackboard, target_wall_x=4.0):
     """
-    到达工位附近后，利用 DT35 测距值对里程计全局坐标进行一次性瞬时校正
+    到达工位停稳后，利用侧向激光测距对 X 坐标进行校准
     """
-    # 1. 稍微停顿 150ms，等待底盘减速停稳，获得稳定的测距读数
-    await fsm.wait(0.15)
+    # 停稳等待读数稳定
+    await fsm.wait(0.1)
 
-    # 2. 从黑板获取滤波后的 DT35 读数
     distance = blackboard.dt35_distance_x
+    # 过滤无效读数（打空或超量程）
     if distance <= 0.05 or distance >= 3.0:
-        # 超出有效量程（打空或被遮挡），放弃本次校正，绝不污染全局坐标
         return False
 
-    # 3. 计算真实绝对 X 坐标并修正黑板偏差
+    # 计算修正后的实际 X 坐标
     real_x = target_wall_x - distance
     error_x = real_x - blackboard.current_pose_x
 
-    # 4. 如果误差在合理范围 (如 10cm 内)，更新坐标系偏移量
+    # 只有当漂移在合理范围（比如 10cm 内）才修正，防止把野点当正常值
     if abs(error_x) < 0.10:
         blackboard.offset_x += error_x
         return True
-    
+
     return False
 ```
 
-### 方案 B：AprilTag 视觉标记重定位
+#### 进阶技巧：双激光测距同时校准距离与航向角
 
-如果赛场立柱或挡板上贴有赛方指定的 AprilTag，可以通过单目相机 + PnP 算法解算出机器人相对 Tag 的 6DoF 位姿：
+如果小车同一侧安装了两个激光测距传感器（探头间距为 $L$），两个探头同时打在同一面平直挡板上：
+- 探头 1 测得距离 $d_1$，探头 2 测得距离 $d_2$；
+- 两个探头的平均距离 $\frac{d_1 + d_2}{2}$ 可以用来校准平移位置；
+- 两个距离的差值还可以算出车身相对挡板的偏角：$\Delta \theta \approx \arctan\left(\frac{d_1 - d_2}{L}\right)$。
 
-```
-相机拍到 Tag ──► 检测 4 个角点 ──► PnP 求解 ──► 相机相对位姿 (R, T) ──► 结合 Tag 坐标换算全场位姿
-```
-
-#### 1. 前提：相机内参标定（张正友标定法）
-
-没有标定的相机测出来的距离是完全扭曲的。用一张棋盘格标定板在不同角度拍摄 15~20 张照片：
-
-```python
-import cv2
-import numpy as np
-
-PATTERN_SIZE = (9, 6)
-SQUARE_SIZE = 0.025  # 格子物理边长 25mm
-
-objp = np.zeros((PATTERN_SIZE[0] * PATTERN_SIZE[1], 3), np.float32)
-objp[:, :2] = np.mgrid[0:PATTERN_SIZE[0], 0:PATTERN_SIZE[1]].T.reshape(-1, 2) * SQUARE_SIZE
-
-obj_points, img_points = [], []
-cap = cv2.VideoCapture(0)
-
-print("按 's' 记录一帧棋盘格，收集满 20 张后按 'c' 计算内参...")
-while len(img_points) < 20:
-    ret, frame = cap.read()
-    if not ret: break
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    found, corners = cv2.findChessboardCorners(gray, PATTERN_SIZE, None)
-    
-    disp = frame.copy()
-    if found:
-        cv2.drawChessboardCorners(disp, PATTERN_SIZE, corners, found)
-    cv2.imshow("Calibration", disp)
-    key = cv2.waitKey(30)
-    if key == ord('s') and found:
-        corners_sub = cv2.cornerSubPix(
-            gray, corners, (11, 11), (-1, -1),
-            (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-        )
-        obj_points.append(objp)
-        img_points.append(corners_sub)
-        print(f"已收集: {len(img_points)}/20")
-
-ret, mtx, dist, _, _ = cv2.calibrateCamera(
-    obj_points, img_points, gray.shape[::-1], None, None
-)
-np.savez("camera_params.npz", camera_matrix=mtx, dist_coeffs=dist)
-print("标定完成，参数已存入 camera_params.npz")
-```
-
-#### 2. AprilTag 快速位姿解算
-
-使用 `dt_apriltags` 库直接获取相对位置：
-
-```python
-import cv2
-import numpy as np
-from dt_apriltags import Detector
-
-params = np.load("camera_params.npz")
-camera_matrix = params["camera_matrix"]
-fx, fy = camera_matrix[0, 0], camera_matrix[1, 1]
-cx, cy = camera_matrix[0, 2], camera_matrix[1, 2]
-
-detector = Detector(families="tag36h11", nthreads=2)
-
-def detect_tag_pose(frame, tag_real_size=0.10):
-    """返回识别到的 Tag ID 及其在相机坐标系下的 (x, y, z) 平移"""
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    detections = detector.detect(
-        gray, estimate_tag_pose=True,
-        camera_params=(fx, fy, cx, cy),
-        tag_size=tag_real_size
-    )
-    results = []
-    for d in detections:
-        results.append({
-            "id": d.tag_id,
-            "dist_xyz": d.pose_t.flatten()  # [tx, ty, tz]
-        })
-    return results
-```
+陀螺仪跑久了通常会有微小的角度漂移，而角度一旦偏了，后面的长距离直线就会越走越歪。双激光测距不仅能把坐标拉回来，还能顺带把角度也重新校正，非常实用。
 
 ---
 
-# 视觉流水线：OpenCV vs YOLO 目标检测
+### 方案 2：物理靠墙 / 微动开关碰触校准
 
-在感知层中，除了定位自身位姿，另一大任务是**寻找赛场上的作业目标**（物块、圆环、球、料框或对手车辆）。
+很多时候甚至不需要买昂贵的激光测距传感器，机械物理靠墙是很多强队都在用的土办法：
 
-在硬件选型上，强烈建议小车上位机直接使用 **x86 迷你工控机 / NUC（如 Intel 12代/13代酷睿 i5/i7 迷你主机）**。别用老旧的嵌入式板卡折磨自己——老旧 ARM 板卡不仅有配不完的 CUDA/Python 驱动地狱、赛场发热严重容易降频，而且 CPU 单核性能羸弱。换用普通 x86 迷你主机，标准 Ubuntu 跑起来畅快淋漓，算力完全溢出。
+1. **低速顶墙清零**：小车开到场地边缘后，以极低速度倒车靠在挡板上轻顶 0.3~0.5 秒。只要底盘两个轮子或限位块贴紧了平整挡板，车身角度自然就被挡板“掰正”了，同时该轴的坐标也可以直接在程序里重置为挡板物理坐标。
+2. **微动开关触碰**：在车尾或侧面装两个微动开关（触须），碰到底盘发出开关信号，电控或上位机捕捉到信号就知道车身贴齐了边界。
 
-视觉算法选型同样遵守一条黄金原则：**能用传统几何特征解决的，绝不上深度学习；必须上深度学习的，只用轻量模型。**
+这种方案没有任何传感器温漂、不受反光和光照影响，稳定可靠。
 
-### 1. OpenCV 几何预处理（针对规则色块、球体）
+---
 
-如果赛题目标物是鲜艳的特定颜色与固定几何轮廓（例如红球、蓝色立方体）：
+# 视觉流水线：找物块与对准
 
-```
-原始帧 ──► ROI 区域裁剪 ──► 转 HSV ──► 阈值二值化 ──► 形态学开闭运算 ──► 轮廓筛选与拟合
-```
+除了确认车身自己在哪里，感知层的另一大任务是**寻找赛场上的作业目标**（物块、圆环、球或料框）。
+
+### 硬件选型建议
+
+小车上位机建议直接使用普通的 **x86 迷你工控机 / 迷你主机**（比如 Intel 12/13 代 i5/i7）。系统装标准的 Ubuntu，不要在老旧的 ARM 开发板上折腾复杂的驱动和环境。现代迷你主机的 CPU 单核性能和核显足够跑完全部轻量模型，发热和稳定性也比老旧板卡好得多。
+
+### 1. OpenCV 颜色与轮廓提取（适合规则色块）
+
+如果赛题目标是颜色特征明显的规则物体（比如红球、蓝色立方体），传统 OpenCV 依然是首选，处理一帧通常只要 2~4ms：
 
 ```python
 import cv2
 import numpy as np
 
-def detect_colored_ball(frame, roi_rect):
-    """
-    通过 ROI + HSV 快速锁定目标，处理耗时在 2~4ms 之间
-    """
-    # 1. ROI 裁剪 (只处理画面下半部，剔除 60% 无效背景计算)
-    rx, ry, rw, rh = roi_rect
-    roi = frame[ry:ry+rh, rx:rx+rw]
+def detect_colored_object(frame, hsv_lower, hsv_upper, roi_rect=None):
+    # 1. 如果只需要看画面下半部分，先裁剪 ROI 减少计算量
+    if roi_rect:
+        rx, ry, rw, rh = roi_rect
+        frame = frame[ry:ry+rh, rx:rx+rw]
+    else:
+        rx, ry = 0, 0
 
-    # 2. 色彩转换与滤波
-    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    # 2. 转 HSV 并做高斯模糊
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     blurred = cv2.GaussianBlur(hsv, (5, 5), 0)
 
-    # 3. 颜色阈值二值化 (以黄色球为例)
-    lower_yellow = np.array([20, 100, 100])
-    upper_yellow = np.array([35, 255, 255])
-    mask = cv2.inRange(blurred, lower_yellow, upper_yellow)
+    # 3. 颜色阈值二值化
+    mask = cv2.inRange(blurred, hsv_lower, hsv_upper)
 
-    # 4. 形态学滤波去除微小噪点
+    # 4. 开运算消除小噪点
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
 
-    # 5. 寻找最大轮廓并拟合最小外接圆
+    # 5. 寻找最大轮廓
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
         return None
 
     largest = max(contours, key=cv2.contourArea)
-    if cv2.contourArea(largest) < 200:  # 面积过小视为噪点
+    if cv2.contourArea(largest) < 150:  # 面积太小认为是噪点
         return None
 
-    (cx, cy), radius = cv2.minEnclosingCircle(largest)
-    return (int(cx + rx), int(cy + ry), int(radius))
+    # 获取轮廓中心点像素坐标
+    m = cv2.moments(largest)
+    if m["m00"] == 0:
+        return None
+    cx = int(m["m10"] / m["m00"]) + rx
+    cy = int(m["m01"] / m["m00"]) + ry
+
+    return cx, cy
 ```
 
-> **赛场避坑铁律**：
-> 比赛馆内的灯光（冷白灯管 vs 聚光射灯）会让颜色在 HSV 空间产生巨大偏移。**千万别把 HSV 阈值 hardcode 在代码里**。必须放进上一章讲的 YAML 参数中，到了赛场打开滑动条脚本花 1 分钟校准一次。
+> **赛场调试经验**：  
+> 比赛馆内的灯光（普通日光灯管与高亮射灯）和学校实验室差别很大，颜色在 HSV 空间会有明显偏移。**HSV 的上下限阈值千万别直接写死在代码里**。放在上一章讲的 YAML 参数文件里，到了赛场写个带滑动条（trackbar）的小脚本，花一两分钟现场调一下阈值存进配置。
 
-### 2. YOLOv8n / YOLOv11n 深度学习轻量推理
+### 2. YOLO 轻量模型推理（适合复杂特征目标）
 
-当目标物形状不规则、存在遮挡、或者存在多类目标（如“己方物块”与“障碍物”）时，传统颜色阈值容易失效，此时必须选用 YOLO。
+如果目标物存在不同颜色混杂、相互遮挡，或者需要区分“己方球”和“对方球”，传统颜色分割容易误检，这时候可以用 YOLOv8n / YOLOv11n 等轻量检测模型。
 
-在 x86 迷你主机上，直接使用 **ONNX Runtime / OpenVINO** 进行推理，不需要配置繁琐的 GPU 驱动环境：
-
-```bash
-# 导出通用 ONNX 模型
-yolo export model=best.pt format=onnx imgsz=640
-```
-
-在 Python 节点中调用推理：
+在 x86 迷你主机上，直接把训练好的模型导出为 **ONNX 格式**，用 ONNX Runtime 在 CPU 上跑推理，单帧一般在 15~25ms，不需要配繁琐的显卡驱动：
 
 ```python
 from ultralytics import YOLO
 
-# 直接加载导出的 onnx 模型，在现代 x86 CPU 上单帧仅需 15~25ms
+# 直接加载导出的 onnx 模型
 model = YOLO("best.onnx", task="detect")
 
 def infer_frame(frame):
-    results = model(frame, conf=0.6, verbose=False)
+    results = model(frame, conf=0.55, verbose=False)
     detections = []
     for r in results:
         for box in r.boxes:
@@ -310,46 +226,64 @@ def infer_frame(frame):
             conf = float(box.conf[0])
             x1, y1, x2, y2 = box.xyxy[0].tolist()
             detections.append({
-                "class_name": model.names[cls_id],
-                "confidence": conf,
-                "bbox": (x1, y1, x2, y2),
-                "center": ((x1 + x2) / 2, (y1 + y2) / 2)
+                "name": model.names[cls_id],
+                "conf": conf,
+                "center_x": (x1 + x2) / 2,
+                "center_y": (y1 + y2) / 2
             })
     return detections
 ```
 
+#### 进阶优化：端到端延迟还能怎么压？
+
+很多同学以为视觉慢是因为神经网络本身计算量大。但在实际跑车时你会发现，往往模型前向推理只要 10~15ms，前后处理反而占了很大一部分时间：
+1. **图像预处理（Letterbox）**：等比例缩放、补黑边、BGR 转 RGB、除以 255 归一化并转成 CHW 格式，普通 Python 写一趟经常要 2~3ms；
+2. **Decode（坐标解码）**：把模型输出特征图上的 raw logit 还原成真实框坐标与置信度；
+3. **NMS（非极大值抑制）**：剔除重叠框，如果用普通的 numpy 纯算，耗时很容易飙到十几毫秒。
+
+如果你的小车上位机用的是 AMD 7840HS 这类常见的迷你主机（或者带有独立显卡），需要进一步压榨视觉帧率，强烈推荐参考我朋友 **MTFTau-5** 为 Robocon 比赛专门写的优化算子库：[MTFTau-5/YOLO_operator_RC](https://github.com/MTFTau-5/YOLO_operator_RC)。
+
+他把预处理、Decode 和 NMS 这三个阶段全用独立 C++（AVX2 指令集）以及 CUDA / Vulkan 重写了，没有任何臃肿的第三方依赖：
+- 在 x86（7840HS，Zen4）上，AVX2 Decode 只要 0.05ms，NMS 只要 0.012ms，比 Python/numpy 快了几十到上千倍；
+- 还有一个非常接地气的实测结论：**赛场目标框少的时候，NMS 没必要硬搬到 GPU 上**。因为在候选框只有几十到上千个时，CPU AVX2 处理只要 0.01ms 级，反而比数据在显存和内存之间拷来拷去更快（GPU NMS 的价值在于数据本就在显存且候选框极多，省去中间传输）。
+
+调车时如果你发现模型前向跑得动、但端到端帧率始终提不上去，可以直接用他这个库编译出来的动态库或者 Python 绑定（`yolo_ops_cuda` / `libyoloop_x86`）去对接你的模型输出。
+
+### 实战关键：像素闭环比解精细 3D 坐标更稳
+
+拿到了物块的视觉识别结果后，上位机该怎么用？
+
+很多教材会教你做相机标定，用 PnP 算出物块在相机坐标系下的具体三维物理坐标 $(X, Y, Z)$，然后再通过外参矩阵转到底盘坐标系去抓。
+
+但在实战中，这种做法链路很长，相机机械支架稍微被碰歪一点、或者相机俯角参数有一点偏差，算出来的空间坐标就会差出几厘米。
+
+在赛场抓取中，更常用也更稳健的做法是**基于图像像素的微调闭环（视觉伺服 / Visual Servoing）**：
+1. 底盘先通过导航开到物块大致前方（比如距离 0.5 米停下）；
+2. 相机看到物块后，直接计算物块中心像素距离画面中心线的横向像素偏差：
+
+   $$
+   \text{error\_pixel} = x_{\text{object}} - x_{\text{center}}
+   $$
+
+3. 上位机给底盘发一个很小的横移速度 $v_y = -k_p \times \text{error\_pixel}$，底盘边挪边看，直到物块处于画面中心正负 10 像素以内；
+4. 机械爪直接执行预设抓取动作。
+
+这种做法把复杂的空间几何变换简化成了简单的二维像素对准，在现场调车时几乎不会因为标定失效而翻车。
+
 ---
 
-# 感知系统的防御性降级链设计
+# 感知系统的防御与降级
 
-在紧张激烈的正式比赛中，硬件传感器出幺蛾子是常态：
-- 相机由于剧烈晃动偶发丢帧；
-- 激光测距打在吸光布料或接缝上返回 0；
-- 对手机器人突然挡住视野。
+在比赛实战中，硬件传感器可能会偶发异常：
+- 激光测距偶尔扫到缝隙产生跳变；
+- 相机偶发丢帧或物块被遮挡；
+- 对手车冲过来挡住视线。
 
-如果感知层没有防御性设计，一旦抛出异常或返回 `None`，整车就会当场卡死。
-
-一套稳健的感知流水线必须设计**降级链（Fallback Chain）**：
-
-```
-                ┌─────────────────────────┐
-                │ 顶级精度: 视觉 + DT35 精准引导│
-                └────────────┬────────────┘
-                             │ (目标被遮挡 / 相机丢帧超时)
-                             ▼
-                ┌─────────────────────────┐
-                │ 次级精度: 里程计盲走预设工位 │
-                └────────────┬────────────┘
-                             │ (里程计数据超时未上报)
-                             ▼
-                ┌─────────────────────────┐
-                │ 安全兜底: 立即切断底盘急停  │
-                └─────────────────────────┘
-```
+如果代码里没做防御处理，拿到 `None` 直接报错，整个决策流程就会当场卡死。
 
 ### 1. 测距传感器的中值滤波
 
-DT35 偶尔会因为激光扫到接缝产生单帧尖峰噪点。**绝不要直接拿单帧裸数据去算坐标**，至少做滑动窗口中值滤波：
+激光测距传感器偶发会因为反光问题出现一两帧错误读数。读数拿来用之前，至少做一个简易的滑动窗口中值滤波：
 
 ```python
 from collections import deque
@@ -359,44 +293,40 @@ class DistanceFilter:
     def __init__(self, window_size=5):
         self.buffer = deque(maxlen=window_size)
 
-    def update(self, raw_val: float) -> float:
-        # 过滤无效量程
-        if raw_val <= 0.05 or raw_val > 5.0:
+    def update(self, val: float) -> float:
+        # 剔除明显不在合理量程内的异常读数
+        if val <= 0.05 or val > 4.0:
             return self.get_latest()
 
-        self.buffer.append(raw_val)
-        # 取中位数，消除单帧毛刺
+        self.buffer.append(val)
         return float(np.median(self.buffer))
 
     def get_latest(self) -> float:
         return float(np.median(self.buffer)) if self.buffer else 0.0
 ```
 
-### 2. 视觉丢失的心跳超时与盲走兜底
+### 2. 视觉丢失时的超时兜底
 
-在状态机中等待视觉目标时，永远附带超时与降级策略：
+在状态机等待视觉对准时，一定要加超时退出机制。如果超过比如 1.5 秒画面里依然看不到物块，绝不能在原地一直死等，必须有兜底动作：
 
 ```python
-async def align_to_target_mission(fsm, act, bb):
+async def align_and_grab(fsm, act, bb):
     try:
-        # 尝试在 1.5 秒内等待视觉捕捉到目标
-        event = await fsm.wait_event("TARGET_ACQUIRED", timeout=1.5)
-        target_x, target_y = event.data["x"], event.data["y"]
-        act.send_fine_tune_approach(target_x, target_y)
-    except FSMTimeoutError:
-        # 视觉丢失超时！立即降级为预置坐标盲抓，绝不停留在原地发呆
-        act.get_logger().warn("视觉目标丢失，降级为预置坐标盲抓流程！")
-        act.send_blind_grab_action()
+        # 最多等 1.5 秒获取视觉对准事件
+        await fsm.wait_event("VISION_ALIGNED", timeout=1.5)
+        act.send_grab_command()
+    except TimeoutError:
+        # 超时了，记录警告并执行盲抓或跳过本工位
+        act.get_logger().warn("视觉对准超时，执行盲抓兜底策略")
+        act.send_blind_grab_command()
 ```
 
 ---
 
 # 小结
 
-1. **里程计权责分明**：机械与电控负责在下位机以高频积分解算底盘位姿并上报；上位机负责享用平滑的基准位姿，并为长距离累积漂移擦屁股。
-2. **拒绝盲目上激光 SLAM**：在 12m × 15m 的对抗赛场上，低矮挡板与动态人员遮挡极易导致点云退化与假死。“里程计主力推算 + 关键工位打点校正”才是高胜率解法。
-3. **打点校正是精度的保证**：通过 DT35 测距传感器打在已知挡板上，或者相机识别 AprilTag，在到达作业点前进行一次性坐标修正，彻底抹平累积漂移。
-4. **硬件与算法务实选型**：上位机推荐采用普通的 x86 迷你工控机，告别老旧 ARM 板卡的驱动折磨；规则图形用 HSV 几何形态学（2~4ms），复杂目标用轻量 YOLO 转 ONNX（15~25ms）。
-5. **感知层必须有降级链**：测距野点做中值滤波，视觉等待加严格超时与盲走兜底，确保机器人永远不会在赛场上原地卡死。
-
-下一章，我们将正式进入核心决策系统——看看如何利用 Python `async/await` 协程状态机，把这些感知数据调动起来，优雅、线性地指挥机器人全场拿分。
+1. **里程计权责分明**：电控负责在下位机高频积分算坐标并上报；上位机负责拿来导航，并在长距离累积漂移后寻找参照物进行打点修正。
+2. **不用全套激光 SLAM 是理智的选择**：十几米的小场地、矮挡板外动态人员干扰、长直墙特征退化，都容易让全局 SLAM 出问题。“里程计跑位 + 工位打点校准”开发快且更稳定。
+3. **接地气的重定位手段**：赛场没有 AprilTag。单/双激光测距打固定围挡（双激光还能顺便校正偏航角），或者底盘低速碰墙硬件清零，是赛场上最简单可靠的做法。
+4. **视觉做像素闭环更不易翻车**：规则颜色用 OpenCV HSV，复杂分类用轻量 YOLO ONNX。对于抓取对准，直接用像素偏差给底盘做横移对齐，比算空间 3D 坐标更皮实。
+5. **感知层一定要有超时兜底**：传感器读数做滤波，视觉寻找加超时。传感器看不到东西时，宁可盲抓或跳过，也不能让车停在场上发呆。
