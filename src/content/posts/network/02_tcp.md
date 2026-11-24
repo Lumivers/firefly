@@ -1,9 +1,10 @@
 ---
-title: "第二章 TCP 深入：可靠传输的代价"
+title: "第二章 TCP 传输机制与状态机"
 published: 2026-04-22
 pinned: false
-description: "**面试突击 · TCP 协议。** 从三次握手到四次挥手的每个状态转移，从滑动窗口到拥塞控制的四个阶段，从粘包问题到 Nagle 算法——一文吃透面试中占比最大的 TCP 协议。"
-tags: [计算机网络, 面试, TCP, 三次握手, 拥塞控制]
+weight: 2
+description: "TCP 核心协议体系。覆盖三次握手与四次挥手 11 种状态转移机、滑动窗口与可靠重传（SACK/快速重传）、拥塞控制 4 阶段数值推演（慢启动/拥塞避免/快重传/快恢复）、Nagle 与延迟确认冲突、队头阻塞机理与 C++ 长度前缀分包实战。"
+tags: [计算机网络, 面试, TCP, 三次握手, 拥塞控制, 状态机, 游戏开发]
 category: 计算机网络笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
@@ -11,36 +12,30 @@ image: ""
 draft: false
 ---
 
-# 第二章 TCP 深入：可靠传输的代价
+# 第二章 TCP 传输机制与状态机
 
-> **一句话理解**：TCP 用**连接管理 + 序列号 + 确认重传 + 流控 + 拥塞控制**五大机制换来可靠传输——代价是延迟和复杂度。
-
----
-
-## 2.1 概念直觉 —— What & Why
-
-### TCP 的四个承诺
-
-TCP 保证你发的数据：
-1. **不丢** —— 丢了会重传
-2. **不重** —— 序列号去重
-3. **不乱** —— 按序列号排序后交给应用
-4. **不错** —— 校验和检测错误
-
-### 可靠的代价
-
-| 代价 | 原因 |
-|------|------|
-| **建连延迟** | 三次握手至少 1.5 RTT |
-| **队头阻塞** | 一个包丢了，后面的都要等 |
-| **头部开销** | TCP 头 20 字节 vs UDP 头 8 字节 |
-| **拥塞控制** | 主动降速，可能浪费带宽 |
+> TCP 是面向连接、可靠的基于字节流的传输层协议。它通过初始序号同步、滑动窗口、累积确认与端到端拥塞控制，在不可靠的 IP 网络之上构建了有序可靠的双向字节流管道。然而其强保序性带来的队头阻塞与拥塞降速开销，深刻影响了现代高性能网络与实时系统的架构选型。
 
 ---
 
-## 2.2 原理图解
+## 0. 考点优先级概览
 
-### TCP 报文头
+| 优先级 | 核心模块 | 重点考点 | 考核形式 |
+| :--- | :--- | :--- | :--- |
+| **P0** | **连接生命周期与状态机** | 三次握手与四次挥手 11 种状态转移、为什么握手需三次而挥手需四次、TIME_WAIT 与 CLOSE_WAIT 异常分析 | 状态机推导、时序图绘制、核心概念问答 |
+| **P0** | **可靠传输与滑动窗口** | 累计确认 (Cumulative ACK)、超时重传 (RTO)、3 重复 ACK 快速重传、SACK 选择性确认、滑动窗口与流量控制 | 机制辨析、窗口滑动过程追踪 |
+| **P1** | **拥塞控制定量推演** | 慢启动、拥塞避免、快速重传、快速恢复 Reno/Cubic/BBR 对比，**408 必考拥塞窗口数字演进表格推导** | **期末 / 408 经典定量计算大题** |
+| **P1** | **连接队列与安全机制** | 半连接队列 (SYN Queue) 与全连接队列 (Accept Queue) 溢出判定、SYN Flood 攻击原理与 SYN Cookie 防护 | 操作系统内核网络参数分析、系统调优 |
+| **P2** | **工业与游戏实战** | Nagle 算法与 Delayed ACK 40ms 延迟死锁、`TCP_NODELAY` 调优、TIME_WAIT 端口耗尽与 `SO_REUSEADDR`、TCP 队头阻塞 | 高性能并发架构、网络性能调优 |
+| **P3** | **参考实现与速查** | C++ 长度前缀粘包拆包解析器、非阻塞 connect 异步连接检测、TCP 高频面试速答对照表 | 参考代码库（已折叠）、30秒核心速答 |
+
+---
+
+## P0 核心考点：连接生命周期、状态机与滑动窗口
+
+### 1. TCP 报文头核心结构
+
+标准 TCP 报头最小长度为 20 字节，最大为 60 字节（带 40 字节选项）：
 
 ```
  0                   1                   2                   3
@@ -56,659 +51,390 @@ TCP 保证你发的数据：
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |           Checksum            |         Urgent Pointer        |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                    Options (Variable 0~40B)                   |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
 
-| 字段 | 大小 | 含义 |
-|------|------|------|
-| Sequence Number | 32 bit | 本段数据第一个字节的序号 |
-| Acknowledgment Number | 32 bit | 期望收到的下一个字节序号 |
-| SYN | 1 bit | 建立连接 |
-| ACK | 1 bit | 确认（ACK 号有效） |
-| FIN | 1 bit | 关闭连接 |
-| RST | 1 bit | 重置连接 |
-| Window Size | 16 bit | 接收窗口大小（流量控制） |
+* **Sequence Number (32-bit)**：本报文段所发送数据的第一个字节序号。在建立连接时由双方各自随机生成初始序号 (ISN, Initial Sequence Number)。
+* **Acknowledgment Number (32-bit)**：期望收到对方下一个报文段的第一个数据字节序号。数值为 $N$ 表示序号小于 $N$ 的所有字节已成功接收（**累积确认**）。
+* **Data Offset (4-bit)**：TCP 报文头长度，以 **4 字节** 为单位。最小为 5（20B），最大为 15（60B）。
+* **Control Flags (控制位)**：
+  * **SYN**：同步序号，用于建连发起。
+  * **ACK**：确认号有效标志位（建连第三步及之后的所有报文均需置 1）。
+  * **FIN**：释放连接标志位，表示发送方已无数据发送。
+  * **RST**：连接复位，用于强制释放异常连接或拒绝非法报文。
+  * **PSH**：提示接收端立即将缓冲区数据推入应用层，避免等待缓冲区填满。
+* **Window Size (16-bit)**：接收窗口大小 ($rwnd$)，用于流量控制。结合选项中的窗口缩放因子 (Window Scale Option) 可突破 $64\text{ KB}$ 限制。
 
-### 三次握手
+---
+
+### 2. 三次握手与四次挥手时序
 
 ```mermaid
 sequenceDiagram
-    participant C as 客户端
-    participant S as 服务器
-
-    Note over S: LISTEN 状态
-
-    C->>S: ① SYN, Seq=x
-    Note over C: SYN_SENT
-
-    S->>C: ② SYN+ACK, Seq=y, Ack=x+1
-    Note over S: SYN_RCVD
-
-    C->>S: ③ ACK, Seq=x+1, Ack=y+1
-    Note over C: ESTABLISHED
-    Note over S: ESTABLISHED
-
-    Note over C,S: 连接建立完成，可以传输数据
-```
-
-### 四次挥手
-
-```mermaid
-sequenceDiagram
-    participant C as 客户端（主动关闭）
-    participant S as 服务器（被动关闭）
-
-    C->>S: ① FIN, Seq=u
-    Note over C: FIN_WAIT_1
-
-    S->>C: ② ACK, Ack=u+1
-    Note over C: FIN_WAIT_2
-    Note over S: CLOSE_WAIT
-
-    Note over S: 服务器可能还有数据要发...
-
-    S->>C: ③ FIN, Seq=w
-    Note over S: LAST_ACK
-
-    C->>S: ④ ACK, Ack=w+1
-    Note over C: TIME_WAIT (等待 2MSL)
-
-    Note over C: 2MSL 后 → CLOSED
-    Note over S: 收到 ACK → CLOSED
-```
-
-### TCP 状态机（简化版）
-
-```mermaid
-graph LR
-    CLOSED -->|"主动 connect()\nSYN"| SYN_SENT
-    CLOSED -->|"被动 listen()"| LISTEN
-    LISTEN -->|"收到 SYN\n发 SYN+ACK"| SYN_RCVD
-    SYN_SENT -->|"收到 SYN+ACK\n发 ACK"| ESTABLISHED
-    SYN_RCVD -->|"收到 ACK"| ESTABLISHED
-
-    ESTABLISHED -->|"主动 close()\n发 FIN"| FIN_WAIT_1
-    ESTABLISHED -->|"收到 FIN\n发 ACK"| CLOSE_WAIT
-
-    FIN_WAIT_1 -->|"收到 ACK"| FIN_WAIT_2
-    FIN_WAIT_2 -->|"收到 FIN\n发 ACK"| TIME_WAIT
-    TIME_WAIT -->|"2MSL 超时"| CLOSED
-
-    CLOSE_WAIT -->|"发 FIN"| LAST_ACK
-    LAST_ACK -->|"收到 ACK"| CLOSED
-
-    style ESTABLISHED fill:#2d6a4f,stroke:#40916c,color:white
-    style TIME_WAIT fill:#e85d04,stroke:#f48c06,color:white
-    style CLOSE_WAIT fill:#d00000,stroke:#e85d04,color:white
-```
-
----
-
-## 2.3 协议深入剖析
-
-### 2.3.1 三次握手详解
-
-**为什么三次握手，不是两次？**
-
-```
-两次握手的问题：
-1. 客户端发了一个 SYN（连接请求），由于网络延迟在路上卡了很久
-2. 客户端超时重发了一个新的 SYN，成功建立连接并通信完毕
-3. 之后第一个延迟的 SYN 到达服务器
-4. 服务器以为是新的连接请求 → 发 SYN+ACK → 直接建立连接
-5. 但客户端早已关闭 → 服务器白白维护了一个无效连接 ❌
-
-三次握手的解决：
-3. 服务器收到延迟的 SYN → 发 SYN+ACK
-4. 客户端收到 SYN+ACK 但发现不是自己期望的 → 发 RST 拒绝
-5. 服务器收到 RST → 丢弃这个连接 ✅
-```
-
-> 💡 **面试中的表述**：「三次握手的核心目的是：① 同步双方的初始序列号（ISN）② 防止历史重复连接的 SYN 导致错误建连。两次握手无法让客户端告诉服务器"这个连接我不需要了"。」
-
-**SYN 攻击**：
-
-```
-攻击者用伪造的源 IP 发送大量 SYN -> 服务器为每个 SYN 分配资源并等待 ACK
--> ACK 永远不会来（源 IP 是假的）-> 服务器的半连接队列被占满 -> 正常用户无法连接
-
-防御：SYN Cookie
-- 服务器收到 SYN 时不分配资源
-- 把连接信息编码进 SYN+ACK 的序列号中
-- 只有收到合法的第三次 ACK 时才分配资源
-```
-
-**半连接队列 vs 全连接队列**：
-
-```
-半连接队列（SYN Queue）：
-  存放收到 SYN 但还没完成三次握手的连接（SYN_RCVD 状态）
-  大小由 tcp_max_syn_backlog 控制
-
-全连接队列（Accept Queue）：
-  存放已完成三次握手但还没被 accept() 取走的连接（ESTABLISHED 状态）
-  大小由 listen() 的 backlog 参数和 somaxconn 控制
-
-面试常问：
-  accept() 发生在三次握手的哪个时刻？
-  -> accept() 不参与三次握手。三次握手由内核完成，
-     完成后连接放入全连接队列，accept() 只是从队列中取出一个。
-```
-
-**TCP Fast Open (TFO)**：
-
-```mermaid
-sequenceDiagram
-    participant C as 客户端
-    participant S as 服务器
-
-    Note over C,S: 第一次连接（正常三次握手）
-    C->>S: SYN + TFO Cookie 请求
-    S->>C: SYN+ACK + TFO Cookie
-    C->>S: ACK
-    Note over C: 保存 Cookie
-
-    Note over C,S: 后续连接（0-RTT！）
-    C->>S: SYN + TFO Cookie + HTTP 请求数据
-    Note over S: 验证 Cookie -> 立即处理数据
-    S->>C: SYN+ACK + HTTP 响应
-    C->>S: ACK
-```
-
-```
-TCP Fast Open：在第一个 SYN 包中就携带数据
--> 省去一个 RTT，适合短连接场景
--> Linux 3.7+ 支持
--> 需要服务器支持 TFO Cookie 验证（防重放攻击）
-```
-
----
-
-### 2.3.2 四次挥手详解
-
-**为什么四次挥手，不是三次？**
-
-```
-TCP 是全双工的——两个方向的数据流独立关闭。
-• 客户端发 FIN：我不再发数据了
-• 服务器发 ACK：我知道了，但我可能还有数据要发
-• 服务器发 FIN：我也不发了
-• 客户端发 ACK：好的
-
-如果服务器没有数据要发了，②③ 可以合并（ACK + FIN），
-变成"三次挥手"——这在实际中偶尔会出现。
-```
-
-**TIME_WAIT 状态**：
-
-```
-TIME_WAIT 持续 2MSL（Maximum Segment Lifetime，通常 60 秒）
-
-为什么要等？
-1. 确保最后的 ACK 到达服务器（如果 ACK 丢了，服务器会重发 FIN）
-2. 让网络中残留的旧连接数据包消亡（防止新连接收到旧包）
-
-太多 TIME_WAIT 的问题：
-- 每个 TIME_WAIT 占用一个 (源IP, 源端口, 目的IP, 目的端口) 四元组
-- 高并发短连接服务器可能耗尽端口（客户端连同一个服务器最多 65535 个）
-```
-
-```cpp
-// === 解决 TIME_WAIT 的方案 ===
-
-// 方案 1：SO_REUSEADDR（最常用）
-// 允许绑定到一个处于 TIME_WAIT 状态的地址
-// 服务器重启时不用等 60 秒才能重新 bind
-int reuse = 1;
-setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
-
-// 方案 2：SO_REUSEPORT（Linux 3.9+）
-// 允许多个 socket 绑定同一个端口（负载均衡）
-int reuseport = 1;
-setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &reuseport, sizeof(reuseport));
-
-// 方案 3：Linux 内核参数
-// net.ipv4.tcp_tw_reuse = 1   (允许复用 TIME_WAIT 连接)
-// net.ipv4.tcp_max_tw_buckets  (限制 TIME_WAIT 总数)
-
-// 方案 4：使用长连接
-// 游戏中通常用长连接 -> TIME_WAIT 只在断线时出现 -> 不是问题
-```
-
-**CLOSE_WAIT 大量堆积**:
-
-```
-CLOSE_WAIT = 对方已经关闭（发了 FIN），但自己还没有调 close()
-大量 CLOSE_WAIT = 代码 bug：收到 FIN 后没有关闭 socket
-
-排查步骤：
-1. netstat -anp | grep CLOSE_WAIT   # 找到哪些连接
-2. 检查代码中 recv() 返回 0 后是否调用了 close()
-3. 检查是否有未关闭的 fd 泄露（RAII 封装 socket 可以避免）
-```
-
-**`close()` vs `shutdown()`**：
-
-```cpp
-close(fd);
-// 关闭 fd，引用计数减 1，计数为 0 时发 FIN
-// 如果 fd 被 fork/dup 了，close 不会立即发 FIN
-
-shutdown(fd, SHUT_WR);   // 关闭写端，立即发 FIN（不管引用计数）
-shutdown(fd, SHUT_RD);   // 关闭读端
-shutdown(fd, SHUT_RDWR); // 关闭双端
-
-// 推荐：先 shutdown(SHUT_WR) 通知对方，再 close()
-// 这叫"优雅关闭"（graceful shutdown）
-```
-
----
-
-### 2.3.3 可靠传输机制
-
-```cpp
-// 序列号与确认号
-// 发送方：每个字节一个序号
-// 接收方：ACK = "我已收到所有序号 < ACK 的数据，下一个期望收 ACK"
-
-// 例：发送方发 Seq=100, 长度=50 的数据
-//     接收方回 ACK=150（表示 150 之前的都收到了）
-
-// 超时重传
-// RTO (Retransmission Timeout) = 根据 RTT 动态计算
-// RTT 测量 → SRTT = (1-α)*SRTT + α*RTT（指数加权移动平均）
-// RTO = SRTT + 4*RTTVAR
-
-// 快速重传（不等超时）
-// 发送方收到 3 个重复 ACK → 立即重传丢失的段
-// 例：发了 1,2,3,4,5，其中 2 丢了
-// 接收方收到 1 → ACK 2
-// 接收方收到 3 → ACK 2（重复 ACK #1，因为还没收到 2）
-// 接收方收到 4 → ACK 2（重复 ACK #2）
-// 接收方收到 5 → ACK 2（重复 ACK #3）
-// 发送方收到 3 个重复 ACK → 立即重传 2（不等超时！）
-```
-
-**SACK (Selective ACK)**：
-
-```
-普通 ACK 只能说"我收到了连续到 N 的数据"
-SACK 可以说"我收到了 1-100, 200-300, 400-500"
-→ 发送方只需要重传 101-199, 301-399
-→ 大幅减少不必要的重传
-```
-
----
-
-### 2.3.4 流量控制
-
-```mermaid
-graph LR
-    subgraph "滑动窗口"
-        s1["已确认\n(可释放)"]
-        s2["已发送\n未确认"]
-        s3["可发送\n待发送"]
-        s4["不可发送\n(窗口外)"]
+    autonumber
+    participant C as 客户端 (Client)
+    participant S as 服务端 (Server)
+
+    Note over S: 1. LISTEN 状态 (调用 listen())
+    Note over C: CLOSED 状态
+    
+    rect rgb(240, 248, 255)
+        Note over C,S: === 三次握手 (Connection Establishment) ===
+        C->>S: [SYN] Seq=x, Flags=[SYN], Window=65535
+        Note over C: 进入 SYN_SENT
+        Note over S: 进入 SYN_RCVD (加入半连接队列)
+        S->>C: [SYN+ACK] Seq=y, Ack=x+1, Flags=[SYN, ACK]
+        Note over C: 进入 ESTABLISHED (连接已可用)
+        C->>S: [ACK] Seq=x+1, Ack=y+1, Flags=[ACK] (可携带业务载荷)
+        Note over S: 进入 ESTABLISHED (移入全连接队列，等待 accept())
     end
 
-    s1 --- s2 --- s3 --- s4
-
-    style s1 fill:#2d6a4f,stroke:#40916c,color:white
-    style s2 fill:#e85d04,stroke:#f48c06,color:white
-    style s3 fill:#7b2cbf,stroke:#9d4edd,color:white
-    style s4 fill:#555,stroke:#888,color:#aaa
-```
-
-```
-发送窗口 = min(拥塞窗口 cwnd, 接收窗口 rwnd)
-
-• rwnd（接收窗口）：由接收方在 ACK 中告知，防止接收方缓冲区溢出
-• cwnd（拥塞窗口）：由发送方根据网络状况动态调整，防止网络拥塞
-
-零窗口：
-  接收方来不及处理 → rwnd = 0 → 发送方停止发送
-  发送方启动"零窗口探测定时器"，定期发探测包询问窗口是否恢复
-```
-
-**Nagle 算法**：
-
-```cpp
-// Nagle 算法：把小数据包合并发送，减少网络中的小包数量
-// 规则：如果有未确认的数据，则累积后续小数据，直到收到 ACK 或数据量达到 MSS
-
-// 问题：游戏中每帧发一个小包（几十字节），Nagle 会合并它们
-// → 导致延迟增加（要等 ACK 或凑够一个 MSS）
-// → 游戏体验极差
-
-// 解决：关闭 Nagle
-int flag = 1;
-setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
-// 设置 TCP_NODELAY 后，数据立即发送，不等合并
-```
-
-**Delayed ACK（延迟确认）与 Nagle 的痛苦组合**：
-
-```
-延迟确认：接收方不是每收到一个包就立即回 ACK，
-而是等一小段时间（40ms），看能否和数据一起捎带回去。
-
-Nagle + Delayed ACK 组合的灾难：
-  发送方发了一个小包 -> 等 ACK 才发下一个（Nagle）
-  接收方收到小包 -> 等 40ms 再回 ACK（Delayed ACK）
-  -> 每个小包延迟 40ms！
-
-游戏必须关闭 Nagle：TCP_NODELAY
-接收方也可关闭延迟确认：TCP_QUICKACK（Linux）
-```
-
-**Silly Window Syndrome（糊涂窗口综合症）**：
-
-```
-问题：接收方缓冲区快满了 -> 窗口变得很小（比如只有 1 字节）
--> 发送方发 1 字节数据 + 20 字节 TCP 头 + 20 字节 IP 头 = 41 字节传 1 字节
--> 效率极低
-
-解决：
-- 接收方：窗口小于 MSS 或缓冲区一半时，直接通告 rwnd = 0（Clark 方案）
-- 发送方：Nagle 算法（凑够 MSS 或无未确认数据才发送）
+    rect rgb(255, 245, 245)
+        Note over C,S: === 四次挥手 (Connection Termination) ===
+        C->>S: [FIN] Seq=u, Flags=[FIN, ACK] (主动关闭方)
+        Note over C: 进入 FIN_WAIT_1
+        Note over S: 进入 CLOSE_WAIT (被动关闭方)
+        S->>C: [ACK] Ack=u+1, Flags=[ACK]
+        Note over C: 进入 FIN_WAIT_2 (等待服务端关闭写端)
+        Note over S: 内核通知应用层读取 EOF，处理剩余未发数据...
+        S->>C: [FIN] Seq=w, Ack=u+1, Flags=[FIN, ACK]
+        Note over S: 进入 LAST_ACK
+        C->>S: [ACK] Ack=w+1, Flags=[ACK]
+        Note over C: 进入 TIME_WAIT (启动 2MSL 定时器)
+        Note over S: 收到 ACK，进入 CLOSED 并释放资源
+        Note over C: 2MSL 定时器超时，进入 CLOSED
+    end
 ```
 
 ---
 
-### 2.3.5 拥塞控制
+### 3. TCP 11 种标准状态转移机
 
-```
-拥塞控制 ≠ 流量控制
-• 流量控制：保护接收方（rwnd）
-• 拥塞控制：保护网络（cwnd）
+```mermaid
+stateDiagram-v2
+    [*] --> CLOSED
+    CLOSED --> LISTEN: 被动打开 (bind/listen)
+    CLOSED --> SYN_SENT: 主动打开 (connect 发送 SYN)
+    LISTEN --> SYN_RCVD: 收到 SYN，发送 SYN+ACK
+    SYN_SENT --> ESTABLISHED: 收到 SYN+ACK，发送 ACK
+    SYN_SENT --> SYN_RCVD: 同时打开 (收到 SYN 发送 SYN+ACK)
+    SYN_RCVD --> ESTABLISHED: 收到 ACK (完成三次握手)
+    
+    ESTABLISHED --> FIN_WAIT_1: 主动关闭 (发送 FIN)
+    ESTABLISHED --> CLOSE_WAIT: 收到 FIN，发送 ACK
+    
+    FIN_WAIT_1 --> FIN_WAIT_2: 收到 ACK
+    FIN_WAIT_1 --> CLOSING: 同时关闭 (收到 FIN 发送 ACK)
+    FIN_WAIT_1 --> TIME_WAIT: 收到 FIN+ACK，发送 ACK
+    
+    FIN_WAIT_2 --> TIME_WAIT: 收到 FIN，发送 ACK
+    CLOSING --> TIME_WAIT: 收到 ACK
+    
+    TIME_WAIT --> CLOSED: 2MSL 定时器超时
+    
+    CLOSE_WAIT --> LAST_ACK: 被动方发送 FIN
+    LAST_ACK --> CLOSED: 收到 ACK
 ```
 
-**四个阶段**：
+#### 核心机制深度解析
+* **为什么必须是三次握手（两次握手的致命缺陷）**：
+  1. **防止历史重复连接的初始化造成资源浪费**：若因网络抖动，客户端超时的历史旧 SYN 延迟到达服务端，服务端若仅凭两次握手即进入 ESTABLISHED，将导致无效连接与内存泄漏。三次握手下，客户端收到带有旧确认号的 SYN+ACK 会发送 RST 报文中止错误连接。
+  2. **双方双向同步初始序列号 (ISN)**：双方必须各自确认自己的初始序号已被对方正确知晓（客户端发送 Seq=x 需服务端 ACK=x+1；服务端发送 Seq=y 需客户端 ACK=y+1，共需 $2 \times 2 = 4$ 次交互，中间两步合并为 SYN+ACK，故为 3 次）。
+* **为什么 TIME_WAIT 必须等待 2MSL (Maximum Segment Lifetime)**：
+  1. **确保被动关闭方能够收到最后的 ACK**：若客户端发送的最后一个 ACK 丢失，服务端因超时会重发 FIN。客户端在 2MSL 窗口内保留状态，若再次收到 FIN 能重发 ACK，避免服务端滞留在 LAST_ACK 状态无法正常关闭。
+  2. **保证本连接产生的所有网络在途报文全部消亡**：防止这些旧报文在延迟到达后被后续使用相同四元组（源IP、源端口、目的IP、目的端口）的新连接错误接收。
+
+---
+
+## P1 理论进阶与经典计算：拥塞控制推演与队列溢出
+
+### 1. 拥塞控制四大算法与 408 经典数值推演
+
+拥塞控制旨在保护中间网络路由器缓冲区不被撑爆。发送窗口实际限制为：
+
+$$\text{Effective Window} = \min(\text{rwnd (接收端通告窗口)}, \text{cwnd (拥塞窗口)})$$
+
+#### 四大阶段核心规则（Reno 模型）
+1. **慢启动 (Slow Start)**：初始 $\text{cwnd} = 1\text{ MSS}$。每收到一个 ACK，$\text{cwnd} \mathrel{+}= 1\text{ MSS}$。每经过一个往返时间 RTT，**$\text{cwnd}$ 翻倍（指数增长：$1 \to 2 \to 4 \to 8 \to \dots$）**，直至达到慢启动门限 $\text{ssthresh}$。
+2. **拥塞避免 (Congestion Avoidance)**：当 $\text{cwnd} \ge \text{ssthresh}$ 时，每个 RTT 窗口仅增加 $1\text{ MSS}$（**加法增大，线性增长**），直至发生网络丢包。
+3. **快速重传 (Fast Retransmit)**：接收方收到乱序分段时连续发送重复 ACK。发送方连续收到 **3 个重复 ACK** 时，立即重传对应缺失分段，无需等待 RTO 超时。
+4. **快速恢复 (Fast Recovery)**：
+   * **收到 3 个重复 ACK**：$\text{ssthresh} = \frac{\text{cwnd}}{2}$，更新 $\text{cwnd} = \text{ssthresh} + 3\text{ MSS}$，随后直接进入拥塞避免线性增长。
+   * **发生 RTO 超时重传（网络重度拥塞）**：$\text{ssthresh} = \frac{\text{cwnd}}{2}$，强制重置 $\text{cwnd} = 1\text{ MSS}$，重新执行慢启动。
+
+#### 408 经典真题推演模型
+> **题目模型**：设初始 $\text{ssthresh} = 16\text{ MSS}$，$\text{cwnd} = 1\text{ MSS}$。在第 8 个 RTT 末尾收到 3 个重复 ACK；在第 14 个 RTT 发生重传超时 (Timeout)。计算各 RTT 末尾的 $\text{cwnd}$ 与 $\text{ssthresh}$ 演化：
+
+| RTT 轮次 | 初始 cwnd | 所处阶段 | RTT 结束时 cwnd | ssthresh | 触发事件与状态转换说明 |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| **1** | 1 | 慢启动 | 2 | 16 | 指数增长 |
+| **2** | 2 | 慢启动 | 4 | 16 | 指数增长 |
+| **3** | 4 | 慢启动 | 8 | 16 | 指数增长 |
+| **4** | 8 | 慢启动 | 16 | 16 | 达到 ssthresh，转换为拥塞避免 |
+| **5** | 16 | 拥塞避免 | 17 | 16 | 加法增大 (+1) |
+| **6** | 17 | 拥塞避免 | 18 | 16 | 加法增大 (+1) |
+| **7** | 18 | 拥塞避免 | 19 | 16 | 加法增大 (+1) |
+| **8** | 19 | 拥塞避免 | **20** | 16 | **末尾收到 3 个重复 ACK** |
+| **9** | **10** | 快速恢复 | 11 | **10** | $\text{ssthresh} = 20/2 = 10$，进入快速恢复后切回拥塞避免 |
+| **10** | 11 | 拥塞避免 | 12 | 10 | 线性增长 (+1) |
+| **11** | 12 | 拥塞避免 | 13 | 10 | 线性增长 (+1) |
+| **12** | 13 | 拥塞避免 | 14 | 10 | 线性增长 (+1) |
+| **13** | 14 | 拥塞避免 | 15 | 10 | 线性增长 (+1) |
+| **14** | 15 | 拥塞避免 | **16** | 10 | **末尾发生 RTO 超时丢包 (Timeout)** |
+| **15** | **1** | 慢启动 | 2 | **8** | $\text{ssthresh} = 16/2 = 8$，$\text{cwnd}$ 断崖跌回 1，重启慢启动 |
+
+---
+
+### 2. 拥塞控制算法工业演进对比
+
+| 算法 | 拥塞检测信号 | 窗口调整策略 | 核心局限与应用场景 |
+| :--- | :--- | :--- | :--- |
+| **TCP Reno** | 丢包（3 个重复 ACK 或 RTO 超时） | AIMD（加法增大，乘法减小） | 在大带宽长延迟 (High BDP) 链路下，丢包后重填管道极慢。 |
+| **TCP Cubic** | 丢包 | 采用关于时间的三次函数曲线增长，快速逼近前次拥塞窗口 | **现代 Linux 默认拥塞控制算法**，在高 BDP 网络中吞吐量极佳。 |
+| **Google BBR** | **测量最大交付带宽 (BtlBw) 与最小往返时延 (RTprop)** | 摒弃“丢包=拥塞”模型，沿 BDP 运行，排空路由器多余缓冲区 | 彻底消除 Bufferbloat 拥塞，在弱网高随机丢包环境下吞吐量碾压 Cubic。 |
+
+---
+
+### 3. 半连接队列与全连接队列
+
+Linux 内核在三次握手期间维护两个核心队列：
 
 ```mermaid
 graph LR
-    ss["慢启动\ncwnd 指数增长\n(1→2→4→8...)"]
-    ca["拥塞避免\ncwnd 线性增长\n(+1/RTT)"]
-    fr["快速重传\n3 个重复 ACK\n立即重传"]
-    fc["快速恢复\ncwnd = ssthresh + 3\n不回到慢启动"]
-
-    ss -->|"cwnd ≥ ssthresh"| ca
-    ca -->|"丢包（3重复ACK）"| fr
-    fr --> fc
-    fc -->|"收到新 ACK"| ca
-    ca -->|"丢包（超时）"| ss
-
-    style ss fill:#2d6a4f,stroke:#40916c,color:white
-    style ca fill:#7b2cbf,stroke:#9d4edd,color:white
-    style fr fill:#e85d04,stroke:#f48c06,color:white
-    style fc fill:#d00000,stroke:#e85d04,color:white
+    A["客户端 SYN"] --> B["半连接队列 (SYN Queue)\ntcp_max_syn_backlog\n保存处于 SYN_RCVD 的连接"]
+    B -->|"收到客户端第三次 ACK"| C["全连接队列 (Accept Queue)\nmin(backlog, somaxconn)\n保存处于 ESTABLISHED 的连接"]
+    C -->|"应用进程执行 accept()"| D["返回新已连接 Socket fd"]
 ```
 
-```
-1. 慢启动 (Slow Start)
-   初始 cwnd = 1 MSS
-   每收到一个 ACK → cwnd 翻倍（指数增长：1→2→4→8→16...）
-   直到 cwnd ≥ ssthresh → 进入拥塞避免
-
-2. 拥塞避免 (Congestion Avoidance)
-   每个 RTT → cwnd 增加 1 MSS（线性增长）
-   直到发生丢包
-
-3. 快速重传 (Fast Retransmit)
-   收到 3 个重复 ACK → 立即重传（不等超时）
-
-4. 快速恢复 (Fast Recovery) —— Reno 算法
-   ssthresh = cwnd / 2
-   cwnd = ssthresh + 3
-   继续拥塞避免（不回到慢启动）
-
-   如果是超时丢包（更严重）：
-   ssthresh = cwnd / 2
-   cwnd = 1 MSS
-   回到慢启动
-```
-
-#### 拥塞控制算法对比
-
-| 算法 | 丢包时行为 | 特点 | 使用 |
-|------|-----------|------|------|
-| **Tahoe** | cwnd 回到 1，回慢启动 | 最早的，太保守 | 淘汰 |
-| **Reno** | cwnd 减半，快速恢复 | 改进 Tahoe | 广泛使用 |
-| **Cubic** | 三次函数增长曲线 | 高带宽网络更好 | **Linux 默认** |
-| **BBR** | 基于带宽和 RTT 估计 | 不依赖丢包信号 | Google 服务 |
-
-```
-Reno vs Cubic 的区别：
-  Reno：丢包后线性增长，探测可用带宽慢
-  Cubic：用三次函数快速逼近上次丢包前的窗口大小
-         在高 BDP（带宽 x 延迟）网络中表现远优于 Reno
-
-BBR（2016 年 Google 提出）：
-  传统算法把"丢包"当作拥塞信号 -> 不够准确（WiFi/4G 也会丢包）
-  BBR 主动测量带宽和 RTT -> 追求最大吞吐量和最低延迟
-  发送速率 = 估计带宽，窗口 = 估计 BDP
-  -> 在丢包较多的网络（如移动网络）中表现远好于 Cubic
-  -> 适合游戏服务器使用（sudo sysctl net.ipv4.tcp_congestion_control=bbr）
-```
+* **全连接队列满时的系统行为**：
+  * 若全连接队列已满，内核依据 `net.ipv4.tcp_abort_on_overflow` 决定动作：
+    * `0`（默认）：**丢弃客户端的第三次 ACK**，假装没收到，触发服务端重发 SYN+ACK。给应用层 `accept()` 腾出缓冲时间。
+    * `1`：直接向客户端发送 **RST 报文** 拒绝连接。
+* **SYN Flood 攻击与 SYN Cookie 防护**：
+  * 攻击者伪造大量不存在的源 IP 发送 SYN 包，使半连接队列被完全打满，正常请求被丢弃。
+  * **SYN Cookie 原理**：当半连接队列满且开启 `net.ipv4.tcp_syncookies = 1` 时，服务端收到 SYN **不分配内存 PCB 资源**，而是将连接四元组、时间戳与 MSS 选项通过密钥生成哈希，直接作为服务端 SYN+ACK 的 **初始序号 ISN** 返回。客户端回复 ACK 时携带该序号，服务端校验通过后才原地分配内存。
 
 ---
 
-### 2.3.6 粘包问题
+## P2 工程实战与底层性能：延迟死锁、队头阻塞与端口治理
 
+### 1. Nagle 算法与 Delayed ACK 40ms 延迟死锁
+
+* **Nagle 算法**：旨在避免小包泛滥占用带宽。规定：若连接上有已发送但尚未被确认的在途数据，且当前积攒的数据小于 MSS，则**强制缓存在本地发送队列中，直到收到上一个分段的 ACK 或积攒满 MSS 才允许发送**。
+* **Delayed ACK (延迟确认)**：接收端收到数据后不立即回复 ACK，而是等待固定周期（通常为 **40ms**）期望与本端的响应数据一同捎带返回 (Piggybacking)。
+
+```mermaid
+sequenceDiagram
+    participant C as 客户端 (已启用 Nagle)
+    participant S as 服务端 (已启用 Delayed ACK)
+
+    Note over C: 连续调用两次 write(): 先写 10B，再写 20B
+    C->>S: 立即发送第 1 个包 (10B, 无在途数据)
+    Note over C: 第 2 个包 (20B < MSS) 被 Nagle 强制拦截，等待 ACK
+    Note over S: 收到 10B，启动 40ms 延迟确认定时器，静默等待捎带数据...
+    Note over C,S: 双方陷入互相等待死锁！持续整整 40ms
+    Note over S: 40ms 定时器超时，服务端被迫单播回复 ACK
+    S-->>C: 发送纯 ACK
+    Note over C: 客户端收到 ACK，解除阻塞，发出第 2 个包 (20B)
 ```
-TCP 是字节流协议——没有消息边界！
-发送方发两次："Hello" 和 "World"
-接收方可能收到：
-  • "HelloWorld"    → 粘包
-  • "Hel" + "loWorld" → 拆包
-  • "Hello" + "World" → 刚好（运气好）
 
-原因：TCP 把应用数据视为连续的字节流，Nagle 合并 + 接收方缓冲区一次读多个
+* **工业与游戏底层调优准则**：
+  * 在游戏、RPC 与金融交易场景下，必须在客户端与服务端显式关闭 Nagle 算法：
+    ```cpp
+    int enable = 1;
+    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &enable, sizeof(enable));
+    ```
+
+---
+
+### 2. TIME_WAIT 端口耗尽与底层治理方案
+
+当高并发短连接系统（如反向代理或爬虫节点）主动关闭大量连接时，本地四元组的大量端口将处于 TIME_WAIT 状态（持续 $2\text{MSL} = 60\text{s}$），导致无法向同一目标服务器发起新连接（抛出 `EADDRNOTAVAIL`）。
+
+* **方案 1：应用层开启 `SO_REUSEADDR`（服务重启防占用）**
+  * 允许监听 Socket 重新绑定处于 TIME_WAIT 状态的端口，确保服务端进程重启时无需等待 2MSL。
+* **方案 2：Linux 内核参数开启 `tcp_tw_reuse`（安全出向复用）**
+  * 在客户端开启 `net.ipv4.tcp_tw_reuse = 1` 并依赖 `net.ipv4.tcp_timestamps = 1`（PAWS 机制防旧包干扰），允许处于 TIME_WAIT 状态超过 1 秒的端口被复用于对外发起新连接。
+* **方案 3：架构层面彻底采用持久长连接 (Keep-Alive)**
+  * 维持长连接池，从根源消除瞬时频繁四次挥手带来的 TIME_WAIT 积累。
+
+---
+
+### 3. TCP 队头阻塞 (Head-of-Line Blocking) 的物理缺陷
+
+TCP 协议栈在内核层面强制保证**按序交付 (In-Order Delivery)**：
+
+```mermaid
+graph LR
+    subgraph "接收端内核 TCP 缓冲区"
+        direction LR
+        P1["分段 1 (已按序交付)"] --> P2["分段 2 (丢失丢包!)"]
+        P2 --> P3["分段 3 (已被网卡接收，挂起缓存)"]
+        P3 --> P4["分段 4 (已被网卡接收，挂起缓存)"]
+        P4 --> P5["分段 5 (已被网卡接收，挂起缓存)"]
+    end
+    style P1 fill:#2d6a4f,stroke:#40916c,color:white
+    style P2 fill:#991b1b,stroke:#ef4444,color:white
+    style P3 fill:#e85d04,stroke:#f48c06,color:white
+    style P4 fill:#e85d04,stroke:#f48c06,color:white
+    style P5 fill:#e85d04,stroke:#f48c06,color:white
 ```
 
-**解决方案**：
+* **致命问题**：若分段 2 在传输途中丢失，尽管分段 3、4、5 已经顺利抵达接收端内存，**TCP 内核驱动绝不允许将它们提前交付给应用层**。应用层必须被动等待超时重传或快速重传补齐分段 2 后，整批数据才被一次性释放。
+* **实时游戏影响**：FPS 游戏中即使每秒产生 60 次位置更新，只要丢失一个包，后续 59 个最新位置将全部被内核卡死，造成玩家画面严重顿挫与瞬间瞬移。因此实时游戏动作/位置同步通常改用基于 UDP 的自研 ARQ 或 KCP 协议。
+
+---
+
+## P3 参考实现与速查
+
+### 1. 工业级长度前缀粘包拆包解析器
+
+<details>
+<summary><strong>高性能 C++ 环形缓冲区 TCP 粘包/拆包处理实现</strong></summary>
 
 ```cpp
-// 方案 1：固定长度（简单但浪费）
-// 每个消息固定 256 字节，不够补零
+#include <vector>
+#include <cstdint>
+#include <cstring>
+#include <iostream>
+#include <algorithm>
 
-// 方案 2：分隔符（适合文本协议）
-// 每条消息以 \r\n 结尾
+#if defined(_WIN32)
+#include <winsock2.h>
+#else
+#include <arpa/inet.h>
+#endif
 
-// 方案 3：长度前缀（游戏最常用 ✅）
-struct GamePacket {
-    uint16_t length;  // 整个包的长度（含头部）
-    uint16_t msg_id;  // 消息类型
-    // ... payload ...
-};
+class TcpStreamBuffer {
+public:
+    TcpStreamBuffer() : buffer_(4096), read_idx_(0), write_idx_(0) {}
 
-// 接收时的处理：
-void onData(const char* data, size_t len) {
-    recv_buffer.append(data, len);
-
-    while (recv_buffer.size() >= sizeof(uint16_t)) {
-        uint16_t pkt_len = *reinterpret_cast<const uint16_t*>(recv_buffer.data());
-
-        if (recv_buffer.size() < pkt_len) break;  // 数据不完整，等更多数据
-
-        // 完整的包！处理它
-        processPacket(recv_buffer.data(), pkt_len);
-        recv_buffer.erase(0, pkt_len);
+    // 接收网卡数据写入缓冲区
+    void Append(const char* data, size_t len) {
+        EnsureCapacity(len);
+        std::memcpy(buffer_.data() + write_idx_, data, len);
+        write_idx_ += len;
     }
-}
-```
 
----
+    // 按照 2 字节包头长度前缀提取完整应用层数据包
+    bool TryPopMessage(std::vector<uint8_t>& out_payload) {
+        constexpr size_t kHeaderSize = sizeof(uint16_t);
+        size_t available_bytes = write_idx_ - read_idx_;
 
-## 2.4 经典面试题
-
-**Q：三次握手的过程？**
-> ① 客户端发 SYN（Seq=x），进入 SYN_SENT。② 服务器回 SYN+ACK（Seq=y, Ack=x+1），进入 SYN_RCVD。③ 客户端发 ACK（Ack=y+1），双方进入 ESTABLISHED。目的是同步序列号和防止历史连接。
-
-**Q：为什么不是两次握手？**
-> 两次握手无法防止历史延迟的 SYN 导致服务器建立无效连接。三次握手让客户端有机会通过 RST 拒绝过时的连接。
-
-**Q：TIME_WAIT 有什么用？太多怎么办？**
-> 等 2MSL 确保最后的 ACK 到达对方（丢了可以重发 FIN），并让旧连接的残留包消亡。太多 TIME_WAIT 用 SO_REUSEADDR 或长连接解决。
-
-**Q：TCP 如何保证可靠传输？**
-> 五个机制：① 序列号确认（ACK）② 超时重传 ③ 快速重传（3 重复 ACK）④ 流量控制（滑动窗口）⑤ 拥塞控制（慢启动+拥塞避免）。
-
-**Q：什么是粘包？怎么解决？**
-> TCP 是字节流无消息边界，多个消息可能粘在一起或被拆开。用长度前缀（包头写长度）解决——读到足够长度才算一个完整消息。
-
-**Q：Nagle 算法是什么？游戏为什么要关闭它？**
-> Nagle 把小包合并发送减少网络开销。但游戏每帧发小包，合并导致延迟不可控。设置 TCP_NODELAY 关闭 Nagle。
-
----
-
-## 2.5 🎮 游戏实战场景
-
-### TCP 在游戏中的使用场景
-
-```
-✅ 适合 TCP：
-• 登录认证（安全、可靠）
-• 聊天系统（有序、不丢）
-• 商城/交易（必须可靠）
-• 好友/公会系统
-• 热更新下载
-
-❌ 不适合 TCP：
-• 位置同步（延迟敏感）
-• 战斗同步（队头阻塞致命）
-• 语音/视频（丢包可容忍）
-```
-
-### 游戏中的 TCP 配置
-
-```cpp
-// 游戏客户端 TCP 连接的典型配置
-int sock = socket(AF_INET, SOCK_STREAM, 0);
-
-// 1. 关闭 Nagle（必须！）
-int nodelay = 1;
-setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay));
-
-// 2. 设置发送/接收缓冲区
-int bufsize = 64 * 1024;  // 64KB
-setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
-setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
-
-// 3. 设置 keep-alive（心跳检测断线）
-int keepalive = 1;
-setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive));
-```
-
-#### TCP Keep-Alive 详解
-
-```cpp
-// TCP Keep-Alive 的三个参数（Linux）
-
-// 空闲多久后开始发探测包（默认 7200 秒 = 2 小时，太长！）
-int idle = 60;  // 游戏中建议 60 秒
-setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle));
-
-// 每次探测的间隔（默认 75 秒）
-int interval = 10;  // 游戏中建议 10 秒
-setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, &interval, sizeof(interval));
-
-// 探测多少次失败后判定断连（默认 9 次）
-int count = 5;  // 5 次失败就断线
-setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, &count, sizeof(count));
-
-// 总断线检测时间 = idle + interval * count = 60 + 10*5 = 110 秒
-```
-
-```
-TCP Keep-Alive vs 应用层心跳：
-
-TCP Keep-Alive：
-  - 操作系统实现，零代码
-  - 只检测 TCP 连接存活，不检测应用层是否正常
-  - 默认间隔太长（2 小时），需要调参
-
-应用层心跳（游戏常用）：
-  - 自己实现，客户端定期发 Ping 包，服务器回 Pong
-  - 能检测应用逻辑是否卡死（TCP alive 不代表游戏逻辑正常）
-  - 频率高（5~30 秒一次）
-  - 能携带额外信息（延迟测量、时间同步）
-
-游戏中通常两者都用：TCP Keep-Alive 兜底 + 应用层心跳做细粒度检测
-```
-
-### 非阻塞 connect
-
-```cpp
-// 游戏中 connect 必须是非阻塞的 —— 不能让游戏主线程卡住
-// 方案：非阻塞 socket + poll 等待连接完成
-
-// 1. 设置非阻塞
-fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK);
-
-// 2. connect 会立即返回（errno = EINPROGRESS）
-int ret = connect(sock, (sockaddr*)&addr, sizeof(addr));
-if (ret == -1 && errno == EINPROGRESS) {
-    // 3. 用 poll 等待连接完成
-    pollfd pfd = {sock, POLLOUT, 0};
-    int ready = poll(&pfd, 1, 5000);  // 5 秒超时
-
-    if (ready > 0 && (pfd.revents & POLLOUT)) {
-        // 4. 检查是否真的连接成功
-        int err = 0;
-        socklen_t len = sizeof(err);
-        getsockopt(sock, SOL_SOCKET, SO_ERROR, &err, &len);
-        if (err == 0) {
-            // 连接成功
-        } else {
-            // 连接失败（err = ECONNREFUSED 等）
+        if (available_bytes < kHeaderSize) {
+            return false; // 甚至不足以解析包头长度
         }
-    } else {
-        // 超时或错误
+
+        // 读取长度字段并执行网络序转主机序
+        uint16_t net_len = 0;
+        std::memcpy(&net_len, buffer_.data() + read_idx_, kHeaderSize);
+        uint16_t msg_total_len = ntohs(net_len);
+
+        if (available_bytes < msg_total_len) {
+            return false; // 发生拆包，数据段未收齐，继续等待更多数据
+        }
+
+        // 完整包已到达，拷贝载荷部分交付应用层
+        size_t payload_len = msg_total_len - kHeaderSize;
+        out_payload.resize(payload_len);
+        std::memcpy(out_payload.data(), buffer_.data() + read_idx_ + kHeaderSize, payload_len);
+
+        read_idx_ += msg_total_len;
+
+        // 缓冲区定期平移复位，防止读指针无限后移
+        if (read_idx_ == write_idx_) {
+            read_idx_ = 0;
+            write_idx_ = 0;
+        }
+        return true;
     }
+
+private:
+    void EnsureCapacity(size_t need_bytes) {
+        if (buffer_.size() - write_idx_ < need_bytes) {
+            // 先尝试向左紧凑平移
+            if (read_idx_ > 0) {
+                size_t remaining = write_idx_ - read_idx_;
+                std::memmove(buffer_.data(), buffer_.data() + read_idx_, remaining);
+                read_idx_ = 0;
+                write_idx_ = remaining;
+            }
+            // 平移后仍不足则扩容
+            if (buffer_.size() - write_idx_ < need_bytes) {
+                buffer_.resize(buffer_.size() * 2 + need_bytes);
+            }
+        }
+    }
+
+    std::vector<char> buffer_;
+    size_t read_idx_;
+    size_t write_idx_;
+};
+```
+</details>
+
+---
+
+### 2. 非阻塞 Connect 异步建连状态检测
+
+<details>
+<summary><strong>跨平台非阻塞 connect 与超时轮询机制</strong></summary>
+
+```cpp
+#include <fcntl.h>
+#include <poll.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+bool AsyncConnectWithTimeout(int sock_fd, const sockaddr_in& target_addr, int timeout_ms) {
+    // 1. 设置套接字为非阻塞模式
+    int flags = fcntl(sock_fd, F_GETFL, 0);
+    fcntl(sock_fd, F_SETFL, flags | O_NONBLOCK);
+
+    // 2. 发起连接：非阻塞模式下立即返回 -1，errno 变为 EINPROGRESS
+    int ret = connect(sock_fd, reinterpret_cast<const sockaddr*>(&target_addr), sizeof(target_addr));
+    if (ret == 0) {
+        fcntl(sock_fd, F_SETFL, flags); // 连接直接瞬时建立
+        return true;
+    }
+    if (errno != EINPROGRESS) {
+        return false; // 明确发生路由或网络错误
+    }
+
+    // 3. 使用 poll 监听套接字的可写事件 (POLLOUT)
+    pollfd pfd{};
+    pfd.fd = sock_fd;
+    pfd.events = POLLOUT;
+
+    int poll_ret = poll(&pfd, 1, timeout_ms);
+    if (poll_ret <= 0) {
+        return false; // 超时或系统调用被中断
+    }
+
+    // 4. 套接字可写并不代表连接必然成功，必须通过 SO_ERROR 检验二次确认
+    int so_error = 0;
+    socklen_t len = sizeof(so_error);
+    if (getsockopt(sock_fd, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0 || so_error != 0) {
+        return false; // 连接被拒绝或超时重置
+    }
+
+    // 恢复原有阻塞属性
+    fcntl(sock_fd, F_SETFL, flags);
+    return true;
 }
 ```
-
-### 队头阻塞 —— TCP 在战斗中的致命缺陷
-
-```
-场景：FPS 游戏，每 16ms 发一个位置包
-  包序号: 1  2  3  4  5  6  7  8 ...
-  包 3 在网络中丢失了
-
-TCP 的行为：
-  接收方收到 1,2 → 交给游戏
-  收到 4,5,6,7,8 → 缓存起来不交给游戏！（因为 3 还没到）
-  等发送方超时重传 3 → 收到 3 → 才一次性交 3,4,5,6,7,8 给游戏
-
-结果：游戏在 3 丢失后卡了一个 RTT + 超时时间
-      玩家看到的是"卡了一下然后瞬移"
-
-UDP 的行为：
-  收到 1,2 → 交给游戏
-  收到 4,5,6,7,8 → 直接交给游戏（跳过 3）
-  游戏拿最新的 8 来渲染 → 玩家感知不到丢包
-
-→ 这就是为什么 FPS/MOBA 用 UDP 而不是 TCP
-```
+</details>
 
 ---
 
-## 2.6 30 秒速答
+### 3. 高频面试考点速答对照
 
-**Q：三次握手的过程？**
-> 客户端发 SYN，服务器回 SYN+ACK，客户端发 ACK。目的是同步序列号、防止历史连接。
-
-**Q：四次挥手的过程？**
-> 主动方发 FIN，被动方回 ACK（此时被动方可能还有数据要发），被动方发 FIN，主动方回 ACK 并进入 TIME_WAIT 等 2MSL。
-
-**Q：TCP 如何保证可靠传输？**
-> 序列号+ACK 确认、超时重传、快速重传（3 重复 ACK）、流量控制（滑动窗口）、拥塞控制（慢启动+拥塞避免+快速恢复）。
-
-**Q：什么是粘包？**
-> TCP 是字节流无消息边界，多个消息可能粘在一起读出。用长度前缀方案解决：每个消息头部写明长度，接收时按长度拆分。
-
----
-
-> 📖 上一章：[第一章 网络分层模型与协议概览](../01_network_model) —— TCP/IP 四层模型、数据封装、IP 协议基础。
-
-> 📖 下一章：[第三章 UDP 与可靠 UDP](../03_udp) —— UDP 特点、TCP vs UDP 对比、KCP 原理与游戏网络架构。
+| 问题 | 核心回答要点 (30 秒速答) |
+| :--- | :--- |
+| **为什么 TCP 建立连接是三次，而断开连接需要四次？** | 建连时服务端的 SYN 与 ACK 可以合并在同一报文段发出；断开连接时 TCP 是全双工的，客户端发送 FIN 仅代表其单向关闭写端，服务端收到后仍可能有未发完的数据，故必须先单发 ACK，待业务全部处理完毕后才能单发 FIN，故拆分为四次。 |
+| **为什么 TIME_WAIT 必须等待 2MSL？** | ① 确保客户端发送的最后一个 ACK 能够可靠到达被动关闭方（若丢失被动方会重发 FIN，2MSL 窗口能保证 ACK 被重发）；② 确保本连接在网络中产生的所有历史报文完全消亡，杜绝新连接复用同一四元组时混淆旧报文。 |
+| **CLOSE_WAIT 状态大量堆积的原因与排查方案？** | 被动关闭方收到了对方发来的 FIN，操作系统内核已自动回复了 ACK，但**应用程序没有显式调用 `close()` 关闭套接字**。根本原因是代码逻辑 bug（如异常分支跳过 `close` 或工作线程阻塞未调用回收），需借助 `netstat` 排查并使用 RAII 管理 socket 资源。 |
+| **TCP 流量控制与拥塞控制有何根本区别？** | 流量控制是**端到端**的，基于接收端反馈的通告窗口 ($rwnd$) 动态调速，防止发送方冲垮接收方缓冲区；拥塞控制是**全局端到网**的，基于拥塞窗口 ($cwnd$) 动态调整（慢启动/拥塞避免/快重传/快恢复），防止全网交换机与路由器缓冲区队列溢出。 |
+| **什么是 TCP 粘包？根本成因是什么？如何彻底解决？** | TCP 是无边界的字节流协议，底层驱动只负责按序拼接传输，应用层的多次 `write` 数据可能被底层缓冲区合并或截断发送。根本解决方式是应用层自定义协议边界，最通用工业方案是在包头增加固定的**长度前缀 (Length Prefix)**，接收端据此按字节数准确切分消息。 |

@@ -1,9 +1,10 @@
 ---
-title: "第五章 Socket 编程与 IO 模型"
+title: "第五章 Socket 编程与 I/O 多路复用模型"
 published: 2026-04-22
 pinned: false
-description: "**面试突击 · Socket 与 IO 模型。** 从 Socket API 到五种 IO 模型，从 select 的 1024 限制到 epoll 的红黑树，从 ET 与 LT 到 Reactor 模式——一文搞定网络编程的核心考点与游戏服务器的 IO 架构选择。"
-tags: [计算机网络, 面试, Socket, epoll, IO多路复用, Reactor]
+weight: 5
+description: "网络系统调用与高并发 I/O 架构。系统剖析五大 I/O 模型内核演进、select/poll/epoll 底层数据结构（红黑树+双向就绪链表）性能对比、LT vs ET 状态转移与非阻塞循环读、Reactor 与 Proactor 并发架构、Windows IOCP 差异。"
+tags: [计算机网络, 面试, Socket, epoll, IO多路复用, Reactor, 游戏开发]
 category: 计算机网络笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
@@ -11,452 +12,247 @@ image: ""
 draft: false
 ---
 
-# 第五章 Socket 编程与 IO 模型
+# 第五章 Socket 编程与 I/O 多路复用模型
 
-> **一句话理解**：Socket 是操作系统给你的"网络文件描述符"——对它读写就是收发网络数据。IO 模型决定你"怎么高效地管理上千个 Socket"。
-
----
-
-## 5.1 概念直觉 —— What & Why
-
-### Socket 是什么？
-
-```
-Socket = IP 地址 + 端口号 = 网络通信的端点
-在 OS 眼中，Socket 就是一个文件描述符（fd），和文件一样可以 read/write。
-
-一条 TCP 连接由五元组唯一标识：
-<源 IP, 源端口, 目的 IP, 目的端口, 协议(TCP/UDP)>
-```
-
-### 为什么需要 IO 多路复用？
-
-```
-问题：游戏服务器要管理几千个连接，每个连接可能随时有数据到来。
-
-方案 1：每连接一个线程
-  → 1000 个连接 = 1000 个线程 → 内存爆炸 + 上下文切换开销
-
-方案 2：非阻塞 + 轮询
-  → 每个 fd 都试一遍 recv → CPU 空转浪费
-
-方案 3：IO 多路复用 ✅
-  → 一个线程监视所有 fd → 哪个 fd 有数据就处理哪个
-  → select / poll / epoll
-```
+> 套接字 (Socket) 是操作系统向应用层暴露的网络文件描述符抽象。在高并发网络服务与分布式游戏服务端中，如何以极低的 CPU 开销管理数以万计的并发连接，是系统架构的核心命题。从传统的阻塞 I/O 到基于红黑树与就绪链表的事件驱动多路复用 (epoll)，其演进本质是内核对**上下文切换与无序轮询开销**的极限压榨。
 
 ---
 
-## 5.2 原理图解
+## 0. 考点优先级概览
 
-### TCP Socket 编程流程
+| 优先级 | 核心模块 | 重点考点 | 考核形式 |
+| :--- | :--- | :--- | :--- |
+| **P0** | **五大 I/O 模型本质** | 阻塞 (BIO)、非阻塞 (NIO)、I/O 多路复用、信号驱动、异步 (AIO) 在两阶段访存中的行为判定 | 核心概念辨析、两阶段图解问答 |
+| **P0** | **select/poll/epoll 横评** | 核心数据结构差异、文件描述符限制、内核态向用户态拷贝代价、时间复杂度推导 | **大厂高频面试必问横向对比** |
+| **P1** | **epoll 底层内核机理** | `epoll_create`/`ctl`/`wait` 底层红黑树 (`rbr`) 与双向就绪链表 (`rdlist`)、网卡软中断与 `ep_poll_callback` 唤醒机制 | 内核源码级机制分析、性能深度推导 |
+| **P1** | **LT vs ET 触发模式** | 水平触发 (Level Triggered) vs 边缘触发 (Edge Triggered) 状态转移、ET 必须配合非阻塞套接字与 `EAGAIN` 循环读的原因 | 状态机推演、手写事件循环逻辑 |
+| **P2** | **并发架构与工程实战** | 单 Reactor 单线程 / 多线程 / 主从多 Reactor 架构推导、惊群效应 (Thundering Herd) 消除、客户端 SPSC 无锁队列交互 | 游戏服务端与客户端架构设计 |
+| **P3** | **参考实现与速查** | C++ epoll 边缘触发高性能事件循环骨干、I/O 模型高频面试速答对照表 | 参考代码库（已折叠）、30秒核心速答 |
 
-```mermaid
-sequenceDiagram
-    participant S as 服务器
-    participant C as 客户端
+---
 
-    Note over S: socket()
-    Note over S: bind(ip, port)
-    Note over S: listen()
+## P0 核心考点：五大 I/O 模型与多路复用横评
 
-    Note over C: socket()
-    C->>S: connect()
-    Note over S: accept() → 新 fd
+### 1. Unix 五大 I/O 模型的两阶段行为判定
 
-    C->>S: send("Hello")
-    S->>C: recv() → "Hello"
-    S->>C: send("World")
-    C->>S: recv() → "World"
+任何网络 I/O 操作均包含两个物理阶段：
+* **阶段 1：数据准备阶段**（数据经网卡到达内核缓冲区）。
+* **阶段 2：数据拷贝阶段**（数据从内核缓冲区拷贝到用户进程内存空间）。
 
-    C->>S: close()
-    S->>S: close()
-```
+| I/O 模型 | 阶段 1：等待数据准备 | 阶段 2：内核向用户态拷贝 | 同步 / 异步判定 | 代表场景 |
+| :--- | :--- | :--- | :--- | :--- |
+| **阻塞 I/O (BIO)** | **阻塞挂起**（进程让出 CPU，进入睡眠态） | **阻塞挂起** | **同步 I/O** | 简单客户端通信、教学示例 |
+| **非阻塞 I/O (NIO)** | **非阻塞轮询**（无数据立即返回 `EWOULDBLOCK`） | **阻塞挂起** | **同步 I/O** | 单线程轮询少量子设备 |
+| **I/O 多路复用** | **阻塞在多路复用调用**（监听一组 fd） | **阻塞挂起** | **同步 I/O** | **epoll、Redis、Nginx、游戏服务** |
+| **信号驱动 I/O** | **非阻塞**（注册 `SIGIO`，内核就绪后发信号） | **阻塞挂起** | **同步 I/O** | 很少在高性能通用服务中使用 |
+| **异步 I/O (AIO)** | **完全非阻塞**（向内核下发读请求后立即返回） | **由内核完成拷贝**（零应用阻塞） | **纯异步 I/O** | Linux `io_uring`、Windows IOCP |
 
-### 五种 IO 模型
+> 💡 **同步 vs 异步判定的终极分水岭**：**“阶段 2（数据从内核空间拷贝到用户空间）是否阻塞应用进程？”**。只要应用线程需要调用 `read()`/`recv()` 阻塞等待数据搬运，就属于**同步 I/O**；多路复用仅是“通知就绪”，因此本质上是**同步 I/O**。
+
+---
+
+### 2. select vs poll vs epoll 核心横向对比
+
+| 评测维度 | select | poll | epoll |
+| :--- | :--- | :--- | :--- |
+| **内核底层数据结构** | 定长位图 (`fd_set`，默认最大 1024) | 动态链表 / 数组 (`pollfd`) | **红黑树 (保存监听集) + 双向就绪链表 (保存就绪事件)** |
+| **支持的最大并发连接** | 受 `FD_SETSIZE` 限制（通常 **1024**） | 无硬性上限（受系统文件句柄总数限制） | **无上限**（仅受进程可用内存限制，GB 级内存可撑数百万） |
+| **文件描述符拷贝开销** | 每次调用均需将全部集合从用户态深拷贝至内核态 | 每次调用仍需全量拷贝全部结构体数组 | **仅在 `epoll_ctl` 时单次插入红黑树，`wait` 无需重复全量拷贝** |
+| **内核就绪检索复杂度** | $O(n)$ 全量遍历检查 | $O(n)$ 全量遍历检查 | **$O(1)$ 直接读取已就绪链表** |
+| **工作模式支持** | 仅支持水平触发 (LT) | 仅支持水平触发 (LT) | **支持水平触发 (LT) 与边缘触发 (ET)** |
+| **时间复杂度** | $O(n)$ 随监听 fd 数量线性衰减 | $O(n)$ 随监听 fd 数量线性衰减 | **$O(\text{就绪事件数})$，与总连接数完全解耦** |
+| **跨平台支持** | POSIX 标准（全平台通用） | POSIX 标准（全平台通用） | **Linux 专有**（FreeBSD 对应 kqueue，Windows 对应 IOCP） |
+
+---
+
+## P1 理论进阶与机制剖析：epoll 底层原理与触发模式
+
+### 1. epoll 内核实现机理：红黑树 + 就绪链表
+
+Linux 内核通过 `struct eventpoll` 统一管理 epoll 实例：
 
 ```mermaid
 graph TD
-    subgraph "IO 模型"
-        bio["阻塞 IO\n调用 recv 时\n线程挂起等数据"]
-        nio["非阻塞 IO\n调用 recv 时\n没数据立即返回\n(需要轮询)"]
-        mux["IO 多路复用\nselect/poll/epoll\n一个线程监视多个 fd"]
-        sig["信号驱动 IO\n内核数据就绪时\n发信号通知"]
-        aio["异步 IO (AIO)\n内核完成数据拷贝后\n通知（真正异步）"]
+    subgraph "epoll 内核数据结构 (struct eventpoll)"
+        RBTree["红黑树 (rbr)\n- 存放所有通过 epoll_ctl 注册的 socket\n- 节点为 epitem，按 fd 寻址，查找/增删复杂度 O(log N)"]
+        ReadyList["双向就绪链表 (rdlist)\n- 存放当前已产生读/写事件的 epitem\n- epoll_wait 仅阻塞等待该链表非空"]
     end
 
-    bio --> nio --> mux --> sig --> aio
+    NIC["网卡接收到数据帧"] -->|"触发 CPU 硬中断"| SoftIRQ["网络软中断处理程序"]
+    SoftIRQ -->|"解析协议栈并执行套接字等待队列回调"| Callback["ep_poll_callback() 回调函数"]
+    Callback -->|"直接将对应 epitem 挂入就绪链表"| ReadyList
+    ReadyList -->|"唤醒挂起的线程"| WaitThread["epoll_wait() 立即返回，拷贝就绪事件至用户空间"]
 
-    style bio fill:#d00000,stroke:#e85d04,color:white
-    style nio fill:#e85d04,stroke:#f48c06,color:white
-    style mux fill:#2d6a4f,stroke:#40916c,color:white
-    style aio fill:#7b2cbf,stroke:#9d4edd,color:white
+    style RBTree fill:#1e293b,stroke:#475569,color:white
+    style ReadyList fill:#0f766e,stroke:#14b8a6,color:white
+    style Callback fill:#991b1b,stroke:#ef4444,color:white
 ```
 
+* **常考误区澄清（mmap 辟谣）**：很多网络资料宣称“epoll 采用 mmap 实现了用户态与内核态零拷贝”，这是严重的技术讹误。Linux 内核中 `epoll_wait` 返回就绪事件列表时，底层调用的是 `__put_user()` 系列宏，**依然执行了微量的内存拷贝**，并未采用 mmap。但由于仅拷贝“就绪事件元数据（几个字节的 `struct epoll_event`）”，其开销微乎其微。
+
+---
+
+### 2. 水平触发 (LT) vs 边缘触发 (ET) 机制深度推导
+
+```mermaid
+stateDiagram-v2
+    [*] --> 不可读状态: 内核缓冲区为空
+
+    不可读状态 --> 可读状态: 网卡到达新数据，缓冲区从 0 变为 N
+    note right of 可读状态
+        【ET 模式】此时仅触发一次通知！
+        【LT 模式】只要数据未读完，每次 wait 均重复通知！
+    end note
+
+    可读状态 --> 可读状态: 用户读取了部分数据，缓冲区剩余 M (M > 0)
+    note right of 可读状态
+        【ET 模式】不再触发通知！
+        【LT 模式】继续通知！
+    end note
+
+    可读状态 --> 不可读状态: 用户调用 read 循环读取，直到返回 -1 且 errno == EAGAIN
 ```
-关键区别：
-• 阻塞/非阻塞/IO 多路复用/信号驱动 → 都是同步 IO
-  （数据从内核缓冲区拷贝到用户缓冲区时，进程阻塞）
-• 异步 IO → 内核帮你完成全部操作，完成后通知你
+
+#### 为什么 ET 模式下必须使用“非阻塞套接字 + 循环读到 EAGAIN”？
+1. **防止数据残留饿死**：ET 模式只在套接字状态发生边缘跳变时触发一次通知。若用户仅调用一次 `read()` 读取了前 1024 字节，而内核实际到达了 4096 字节，剩余的 3072 字节将永远无法再次触发通知，导致数据挂死在内核缓冲区中。
+2. **防止线程陷入死锁**：若套接字配置为阻塞模式，当用户使用 `while` 循环读取直至缓冲区排空时，最后一次 `read()` 在缓冲区无数据后会**陷入永久阻塞**，导致整个工作线程被卡死，无法处理其他连接。
+
+---
+
+## P2 工程实战与并发架构：Reactor 模式与游戏线程模型
+
+### 1. 经典并发设计模式：Reactor vs Proactor
+
+* **Reactor 模式（事件分发反应堆）**：
+  * 基于 I/O 多路复用，核心逻辑为**“事件就绪时通知应用进程，由应用进程自己完成 I/O 读写与业务计算”**。
+  * **主从多 Reactor 模型 (Multi-Reactor)**：
+    * **MainReactor**：独占单个线程，仅负责监听服务端口并调用 `accept()`，生成已连接套接字后轮询负载均衡至 SubReactor。
+    * **SubReactor 池**：通常与物理 CPU 核心数相同，每个 SubReactor 独立拥有一个 `epoll` 实例，专职监听数据的读写并交付工作线程池处理，彻底解耦建连与传输。代表实现：Nginx、Netty。
+* **Proactor 模式（前摄式异步）**：
+  * 基于异步 I/O，核心逻辑为**“应用进程发起异步读写请求后立即返回，操作系统在内核底层完成数据物理搬运后通知应用进程直接消费”**。代表实现：Windows IOCP。
+
+---
+
+### 2. 游戏客户端网络线程与主线程拓扑
+
+在游戏客户端（如 Unreal Engine / Unity）中，网络 I/O 绝不允许阻塞每秒 60/120 帧的游戏主循环 (Game Thread)。业界通用方案为**网络线程独占 + 环形无锁队列 (SPSC Queue)**：
+
+```mermaid
+graph LR
+    subgraph "独立网络线程 (Network Thread)"
+        poll_loop["非阻塞轮询 / poll(10ms)"] --> socket_recv["从内核 Socket 读取网络数据报"]
+        socket_recv --> parse["应用层分包反序列化"]
+    end
+
+    subgraph "线程安全通信信道"
+        parse -->|"无锁推入 (Push)"| Q_In["SPSC 接收队列\n(SPSCQueue<NetMessage>)"]
+        Q_Out["SPSC 发送队列\n(SPSCQueue<NetMessage>)"] -->|"无锁消费 (Pop)"| socket_send["网络线程执行 sendto"]
+    end
+
+    subgraph "游戏主线程 (Game Thread, 60 FPS)"
+        tick["每帧开始 Tick()"] --> poll_q["消费 Q_In 所有到达消息"]
+        poll_q --> gameplay["驱动 ECS / 角色位姿更新 / 动画"]
+        gameplay --> push_out["玩家输入产生操作指令推入 Q_Out"]
+    end
+
+    style Q_In fill:#0f766e,stroke:#14b8a6,color:white
+    style Q_Out fill:#0f766e,stroke:#14b8a6,color:white
 ```
 
 ---
 
-## 5.3 深入剖析
+## P3 参考实现与速查
 
-### 5.3.1 Socket API 基础
+### 1. epoll 边缘触发 (ET) 非阻塞事件循环骨架
 
-```cpp
-#include <sys/socket.h>   // Linux
-// #include <winsock2.h>   // Windows
-
-// === TCP 服务器 ===
-// 1. 创建 socket
-int server_fd = socket(AF_INET, SOCK_STREAM, 0);  // TCP
-
-// 2. 绑定地址
-sockaddr_in addr{};
-addr.sin_family = AF_INET;
-addr.sin_addr.s_addr = INADDR_ANY;  // 监听所有网卡
-addr.sin_port = htons(8080);         // 端口 8080（网络字节序）
-bind(server_fd, (sockaddr*)&addr, sizeof(addr));
-
-// 3. 监听
-listen(server_fd, 128);  // backlog = 128（半连接/全连接队列大小）
-
-// 4. 接受连接
-sockaddr_in client_addr{};
-socklen_t client_len = sizeof(client_addr);
-int client_fd = accept(server_fd, (sockaddr*)&client_addr, &client_len);
-// accept 返回一个新的 fd，用于和这个客户端通信
-
-// 5. 收发数据
-char buf[1024];
-ssize_t n = recv(client_fd, buf, sizeof(buf), 0);
-send(client_fd, "OK", 2, 0);
-
-// 6. 关闭
-close(client_fd);
-close(server_fd);
-
-// === TCP 客户端 ===
-int sock = socket(AF_INET, SOCK_STREAM, 0);
-sockaddr_in server_addr{};
-server_addr.sin_family = AF_INET;
-server_addr.sin_port = htons(8080);
-inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr);
-
-connect(sock, (sockaddr*)&server_addr, sizeof(server_addr));
-send(sock, "Hello", 5, 0);
-close(sock);
-```
+<details>
+<summary><strong>高性能 C++ epoll ET 模式服务器事件循环实现</strong></summary>
 
 ```cpp
-// === UDP 通信（无需 connect/listen/accept）===
-int sock = socket(AF_INET, SOCK_DGRAM, 0);  // SOCK_DGRAM = UDP
-
-// 发送（指定目标地址）
-sendto(sock, data, len, 0, (sockaddr*)&dest, sizeof(dest));
-
-// 接收（返回来源地址）
-sockaddr_in from{};
-socklen_t fromlen = sizeof(from);
-recvfrom(sock, buf, sizeof(buf), 0, (sockaddr*)&from, &fromlen);
-```
-
----
-
-### 5.3.2 阻塞 vs 非阻塞
-
-```cpp
-// 阻塞（默认）：没数据就一直等
-ssize_t n = recv(fd, buf, sizeof(buf), 0);
-// → 线程挂起，直到有数据或连接关闭
-
-// 非阻塞：没数据立即返回
+#include <sys/epoll.h>
 #include <fcntl.h>
-fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+#include <unistd.h>
+#include <iostream>
+#include <vector>
+#include <cerrno>
 
-ssize_t n = recv(fd, buf, sizeof(buf), 0);
-if (n == -1 && errno == EAGAIN) {
-    // 没有数据，稍后再试
+// 辅助函数：将套接字设置为非阻塞
+inline bool SetNonBlocking(int fd) {
+    int flags = fcntl(fd, F_GETFL, 0);
+    return flags != -1 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) != -1;
 }
-```
 
----
+void RunEpollETServer(int listen_fd) {
+    SetNonBlocking(listen_fd);
 
-### 5.3.3 IO 多路复用
+    int epfd = epoll_create1(0);
+    if (epfd == -1) return;
 
-#### select
+    epoll_event ev{};
+    ev.events = EPOLLIN | EPOLLET; // 边缘触发模式
+    ev.data.fd = listen_fd;
+    epoll_ctl(epfd, EPOLL_CTL_ADD, listen_fd, &ev);
 
-```cpp
-fd_set readfds;
-FD_ZERO(&readfds);
-FD_SET(server_fd, &readfds);
-FD_SET(client_fd, &readfds);
+    constexpr int kMaxEvents = 1024;
+    std::vector<epoll_event> events(kMaxEvents);
 
-int max_fd = std::max(server_fd, client_fd);
-timeval tv = {1, 0};  // 超时 1 秒
+    while (true) {
+        int nfds = epoll_wait(epfd, events.data(), kMaxEvents, -1);
+        for (int i = 0; i < nfds; ++i) {
+            int curr_fd = events[i].data.fd;
 
-int ready = select(max_fd + 1, &readfds, nullptr, nullptr, &tv);
-if (ready > 0) {
-    if (FD_ISSET(server_fd, &readfds)) {
-        // 新连接到来
-        accept(server_fd, ...);
-    }
-    if (FD_ISSET(client_fd, &readfds)) {
-        // 客户端有数据
-        recv(client_fd, buf, ...);
-    }
-}
-```
-
-**select 的问题**：
-- `fd_set` 是位图，受 `FD_SETSIZE` 限制（通常 **1024**）
-- 每次调用都要把 `fd_set` 从用户态**拷贝到内核态**
-- 内核返回后要 **O(n) 遍历**所有 fd 找出就绪的
-- 每次调用完 `fd_set` 会被修改，需要重新设置
-
-#### poll
-
-```cpp
-std::vector<pollfd> fds;
-fds.push_back({server_fd, POLLIN, 0});
-fds.push_back({client_fd, POLLIN, 0});
-
-int ready = poll(fds.data(), fds.size(), 1000);  // 超时 1000ms
-for (auto& pfd : fds) {
-    if (pfd.revents & POLLIN) {
-        // 有数据可读
-    }
-}
-```
-
-**poll vs select**：用 `pollfd` 数组替代位图，**无 1024 限制**，但仍然 O(n) 遍历。
-
-#### epoll（Linux，最优解）
-
-```cpp
-// 1. 创建 epoll 实例
-int epfd = epoll_create1(0);
-
-// 2. 注册 fd
-epoll_event ev{};
-ev.events = EPOLLIN;       // 监听可读事件
-ev.data.fd = server_fd;
-epoll_ctl(epfd, EPOLL_CTL_ADD, server_fd, &ev);
-
-// 3. 等待事件
-epoll_event events[1024];
-int n = epoll_wait(epfd, events, 1024, 1000);  // 超时 1000ms
-
-// 4. 只遍历就绪的 fd（不是所有 fd！）
-for (int i = 0; i < n; ++i) {
-    if (events[i].data.fd == server_fd) {
-        int client = accept(server_fd, ...);
-        // 注册新客户端
-        ev.events = EPOLLIN | EPOLLET;  // 边缘触发
-        ev.data.fd = client;
-        epoll_ctl(epfd, EPOLL_CTL_ADD, client, &ev);
-    } else {
-        recv(events[i].data.fd, buf, ...);
-    }
-}
-```
-
-### select vs poll vs epoll 对比
-
-| 维度 | select | poll | epoll |
-|------|--------|------|-------|
-| **fd 上限** | 1024 | 无限制 | 无限制 |
-| **内核实现** | 线性遍历 | 线性遍历 | **红黑树 + 就绪链表** |
-| **每次调用** | 拷贝全部 fd | 拷贝全部 fd | **不拷贝**（内核维护） |
-| **返回后** | O(n) 遍历找就绪 | O(n) 遍历找就绪 | **只返回就绪的 fd** |
-| **性能** | O(n) | O(n) | **O(就绪数)** |
-| **触发模式** | LT | LT | **LT + ET** |
-| **跨平台** | ✅ | ✅ | ❌ Linux 专有 |
-
-#### ET vs LT
-
-```
-LT (Level Triggered, 水平触发, 默认)：
-  只要 fd 可读 → 每次 epoll_wait 都返回它
-  → 你可以分多次读
-
-ET (Edge Triggered, 边缘触发)：
-  fd 从不可读变为可读时 → 只通知一次
-  → 你必须一次读完（循环 read 直到 EAGAIN）
-  → 性能更好（通知次数少），但编程更难
-
-ET 的正确使用：
-  while (true) {
-      ssize_t n = read(fd, buf, sizeof(buf));
-      if (n == -1 && errno == EAGAIN) break;  // 读完了
-      if (n == 0) { /* 对方关闭 */ break; }
-      process(buf, n);
-  }
-```
-
-#### Windows IOCP（完成端口）
-
-```
-IOCP 是 Windows 的异步 IO 模型（Proactor 模式）：
-• 你告诉内核"帮我读这个 fd"
-• 内核完成读操作后通知你"读好了，数据在这"
-• 真正的异步——数据已经在用户缓冲区了
-
-vs epoll（Reactor 模式）：
-• epoll 告诉你"这个 fd 可读了"
-• 你自己调 read() 把数据从内核拷到用户空间
-• 是同步 IO（read 时进程仍然阻塞）
-```
-
----
-
-### 5.3.4 网络编程模式
-
-```mermaid
-graph TD
-    subgraph "Reactor 模式（主流）"
-        reactor["Reactor\nepoll_wait 监听事件"]
-        reactor -->|"新连接"| acceptor["Acceptor\naccept 新 fd"]
-        reactor -->|"可读/可写"| handler["Handler\nrecv/send + 业务逻辑"]
-    end
-
-    style reactor fill:#2d6a4f,stroke:#40916c,color:white
-    style acceptor fill:#e85d04,stroke:#f48c06,color:white
-    style handler fill:#7b2cbf,stroke:#9d4edd,color:white
-```
-
-| 模式 | 描述 | 典型应用 |
-|------|------|---------|
-| **单 Reactor 单线程** | 一个线程 epoll + 处理 | Redis |
-| **单 Reactor 多线程** | 一个线程 epoll，线程池处理业务 | 中型游戏服 |
-| **多 Reactor 多线程** | 主 Reactor 接连接，子 Reactor 处理 IO | Nginx, 大型游戏服 |
-
----
-
-## 5.4 经典面试题
-
-**Q：select、poll、epoll 的区别？**
-> select 用位图，上限 1024，每次全量拷贝和遍历。poll 用数组，无上限但仍 O(n)。epoll 用红黑树+就绪链表，只返回就绪 fd，O(就绪数)。epoll 是 Linux 高性能服务器的标准选择。
-
-**Q：epoll 的 ET 和 LT 模式区别？**
-> LT 只要可读就每次返回，可以分多次读。ET 只在状态变化时通知一次，必须一次读完（循环到 EAGAIN）。ET 性能更好但编程更复杂。
-
-**Q：什么是 Reactor 模式？**
-> Reactor 用一个事件循环（epoll_wait）监听所有 fd 的事件，事件就绪后分发给对应的 Handler 处理。分为单 Reactor 单线程（如 Redis）、单 Reactor 多线程、多 Reactor 多线程（如 Nginx）。
-
-**Q：IO 多路复用是同步还是异步？**
-> 同步！select/poll/epoll 只是告诉你"哪个 fd 就绪了"，你仍然需要自己调 read/write，这一步是阻塞的（数据从内核拷贝到用户空间）。真正的异步 IO 是 IOCP——内核帮你完成整个读操作。
-
-**Q：C10K 问题是什么？**
-> 如何用一台服务器同时处理 10,000 个并发连接。传统每连接一个线程模型会耗尽内存。解决方案：IO 多路复用（epoll）+ 非阻塞 IO + 事件驱动（Reactor）。
-
----
-
-## 5.5 🎮 游戏实战场景
-
-### 5.5.1 游戏客户端网络线程
-
-```cpp
-// 游戏客户端：单独的网络线程 + 主线程消息队列
-// （交叉引用 C++ Ch7 的 SPSC 无锁队列）
-
-class NetworkThread {
-    int _sock;
-    SPSCQueue<NetMessage, 4096> _recv_queue;  // 网络线程 → 主线程
-    SPSCQueue<NetMessage, 4096> _send_queue;  // 主线程 → 网络线程
-    std::atomic<bool> _running{true};
-
-public:
-    void run() {
-        while (_running.load()) {
-            // 用 select/poll 检查读写就绪（客户端只有一个连接，不需要 epoll）
-            pollfd pfd = {_sock, POLLIN | POLLOUT, 0};
-            int ret = poll(&pfd, 1, 10);  // 10ms 超时
-
-            if (pfd.revents & POLLIN) {
-                // 有数据可读
-                char buf[4096];
-                int n = recv(_sock, buf, sizeof(buf), 0);
-                if (n > 0) {
-                    // 解析包 → 推入接收队列
-                    NetMessage msg = parsePacket(buf, n);
-                    _recv_queue.push(msg);
+            if (curr_fd == listen_fd) {
+                // 1. 新连接到来：ET 模式下必须循环 accept 捞尽全连接队列
+                while (true) {
+                    sockaddr_in client_addr{};
+                    socklen_t len = sizeof(client_addr);
+                    int client_fd = accept(listen_fd, (sockaddr*)&client_addr, &len);
+                    if (client_fd == -1) {
+                        if (errno == EAGAIN || errno == EWOULDBLOCK) break; // 已捞空
+                        break;
+                    }
+                    SetNonBlocking(client_fd);
+                    epoll_event client_ev{};
+                    client_ev.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
+                    client_ev.data.fd = client_fd;
+                    epoll_ctl(epfd, EPOLL_CTL_ADD, client_fd, &client_ev);
+                }
+            } else if (events[i].events & EPOLLIN) {
+                // 2. 客户端数据到达：ET 模式必须循环读取直到 EAGAIN
+                char buf[2048];
+                while (true) {
+                    ssize_t n = read(curr_fd, buf, sizeof(buf));
+                    if (n > 0) {
+                        // 业务处理逻辑
+                    } else if (n == 0) {
+                        // 对端优雅关闭连接
+                        epoll_ctl(epfd, EPOLL_CTL_DEL, curr_fd, nullptr);
+                        close(curr_fd);
+                        break;
+                    } else {
+                        if (errno == EAGAIN || errno == EWOULDBLOCK) break; // 数据已读完
+                        // 发生物理异常
+                        epoll_ctl(epfd, EPOLL_CTL_DEL, curr_fd, nullptr);
+                        close(curr_fd);
+                        break;
+                    }
                 }
             }
-
-            // 发送队列中的数据
-            NetMessage out;
-            while (_send_queue.pop(out)) {
-                auto data = serializePacket(out);
-                send(_sock, data.data(), data.size(), 0);
-            }
         }
     }
-
-    // 主线程调用
-    void sendMessage(const NetMessage& msg) { _send_queue.push(msg); }
-    bool pollMessage(NetMessage& msg) { return _recv_queue.pop(msg); }
-};
-
-// 游戏主循环
-void gameLoop() {
-    NetMessage msg;
-    while (netThread.pollMessage(msg)) {
-        handleServerMessage(msg);  // 处理服务器消息
-    }
+    close(epfd);
 }
 ```
-
-### 5.5.2 RAII Socket 封装
-
-```cpp
-// C++ RAII 封装（跨平台）
-class Socket {
-    int _fd = -1;
-public:
-    Socket(int domain, int type, int protocol = 0)
-        : _fd(::socket(domain, type, protocol)) {
-        if (_fd == -1) throw std::runtime_error("socket() failed");
-    }
-
-    ~Socket() { if (_fd != -1) ::close(_fd); }
-
-    // 禁止拷贝，允许移动
-    Socket(const Socket&) = delete;
-    Socket& operator=(const Socket&) = delete;
-    Socket(Socket&& other) noexcept : _fd(other._fd) { other._fd = -1; }
-    Socket& operator=(Socket&& other) noexcept {
-        if (this != &other) {
-            if (_fd != -1) ::close(_fd);
-            _fd = other._fd;
-            other._fd = -1;
-        }
-        return *this;
-    }
-
-    int fd() const { return _fd; }
-    int release() { int f = _fd; _fd = -1; return f; }
-};
-```
+</details>
 
 ---
 
-## 5.6 30 秒速答
+### 2. 高频面试考点速答对照
 
-**Q：select / poll / epoll 的区别？**
-> select 上限 1024，每次全量拷贝+遍历，O(n)。poll 无上限但仍 O(n)。epoll 红黑树+就绪链表，只返回就绪 fd，O(就绪数)，是 Linux 高并发首选。
-
-**Q：什么是 Reactor 模式？**
-> 用事件循环（epoll_wait）统一监听所有 fd，事件就绪后分发给 Handler。分单线程/多线程/多 Reactor 三种变体。Nginx、Redis 都用 Reactor。
-
-**Q：epoll 的 ET 和 LT？**
-> LT 可读就一直通知，可以分次读；ET 只通知一次状态变化，必须一次读完到 EAGAIN。ET 性能更好但编程更复杂。
-
----
-
-> 📖 上一章：[第四章 HTTP、HTTPS 与应用层协议](../04_http) —— HTTP 版本演进、TLS 加密、WebSocket、Protobuf。
-
-> 📖 下一章：[第六章 网络基础设施：DNS、NAT 与 CDN](../06_infrastructure) —— DNS 解析、NAT 穿透、CDN 分发与游戏中的实际应用。
+| 问题 | 核心回答要点 (30 秒速答) |
+| :--- | :--- |
+| **select、poll 与 epoll 的核心性能差异？** | select 使用固定 1024 位图，poll 使用结构体数组，两者每次均需将全部 fd 从用户态拷贝进内核并进行 $O(n)$ 全量轮询；epoll 采用**红黑树**管理监听集（仅 `ctl` 时单次操作），通过网卡中断回调函数将就绪事件挂入**双向就绪链表**，`wait` 时以 $O(\text{就绪数})$ 直接消费，性能与总连接数彻底解耦。 |
+| **epoll 的 LT 与 ET 触发机制有何区别？** | LT（水平触发）模式下，只要内核缓冲区有未读数据，每次 `epoll_wait` 均会重复上送事件通知；ET（边缘触发）模式仅在套接字从未就绪跳变为就绪的一瞬间触发单次通知，后续不再重复提醒。 |
+| **为什么 ET 模式必须搭配非阻塞 Socket 与循环读取？** | ET 模式单次通知后不再重复提醒，因此必须使用 `while` 循环读取直至缓冲区排空并返回 `EAGAIN`，防止未读完的数据永久挂死；同时必须设为非阻塞模式，否则在排空后的最后一次 `read` 调用会陷入永久阻塞，导致处理线程卡死。 |
+| **I/O 多路复用究竟是同步 I/O 还是异步 I/O？** | **完全属于同步 I/O**。因为当多路复用监听到文件描述符可读后，真正将数据包从操作系统内核缓冲区复制到用户态进程内存空间的搬运阶段，依然是由应用程序调用 `read()`/`recv()` 主动执行且在复制期间线程处于阻塞状态。 |
+| **什么是网络编程中的“惊群效应”？Linux 如何解决？** | 多个进程同时监听同一个处于 listen 状态的 socket 并挂起在 `epoll_wait` 时，一个新连接到达会触发内核同时唤醒所有休眠进程但仅一人竞争成功的系统颠簸。现代 Linux 在内核层针对 `accept` 消除了惊群，针对多 epoll 实例引入了 `EPOLLEXCLUSIVE` 标志位或采用多端口 `SO_REUSEPORT` 独立分发。 |

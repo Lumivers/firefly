@@ -1,10 +1,10 @@
 ---
-title: "C++ 面试突击：从语法到底层"
+title: "C++ 深入笔记：从语法底层到高性能架构"
 published: 2026-04-22
 pinned: true
 weight: 3
-description: "**面试突击系列 · 全景导航。** 10 章内容覆盖 C++ 内存模型、智能指针、OOP 多态、移动语义、模板泛型、编译链接、并发多线程、现代 C++ 特性、异常处理与运算符重载——面向游戏客户端开发岗，从原理剖析到游戏实战，从经典陷阱到 30 秒速答。"
-tags: [C++, 面试, 游戏开发, 导航]
+description: "C++ 深入专栏核心全景导航。系统重构 10 大核心模块：内存模型、智能指针、OOP 虚表机制、移动语义、模板元编程、编译链接与 ODR、并发无锁、现代 C++ 演进、异常安全与运算符重载，直指底层机制与高性能架构实战。"
+tags: [C++, 游戏开发, 系统架构, 性能优化, 导航]
 category: C++深入笔记
 licenseName: "CC BY-NC-SA 4.0"
 author: "lumivers"
@@ -12,98 +12,67 @@ image: ""
 draft: false
 ---
 
-# C++ 面试突击：从语法到底层
+# C++ 深入笔记：从语法底层到高性能架构
 
-> 面向**游戏客户端开发岗**的 C++ 深入笔记系列。每章覆盖：原理图解 → 底层剖析 → 经典陷阱 → 🎮 游戏实战 → 30 秒速答。
+> 本专栏面向高性能基础设施与游戏引擎底层架构，对现代 C++ 的物理内存布局、编译期/运行期机制、硬件缓存亲和性及并发无锁编程进行纵深剖析。
 
 ---
 
-## 系列全景
+## 0. 专栏架构全景图
 
 ```mermaid
-graph LR
-    Ch1["Ch1 内存模型\n★★★★★"]
-    Ch2["Ch2 智能指针\n★★★★★"]
-    Ch3["Ch3 OOP 多态\n★★★★★"]
-    Ch4["Ch4 移动语义\n★★★★☆"]
-    Ch5["Ch5 模板泛型\n★★★☆☆"]
-    Ch6["Ch6 编译链接\n★★★★☆"]
-    Ch7["Ch7 并发线程\n★★★★☆"]
-    Ch8["Ch8 现代 C++\n★★★☆☆"]
-    Ch9["Ch9 异常处理\n★★★★☆"]
-    Ch10["Ch10 运算符重载\n★★★☆☆"]
+graph TD
+    subgraph Core["底层物理与对象模型 (P0)"]
+        Ch1["01. 内存模型与布局"]
+        Ch2["02. 指针与智能指针"]
+        Ch3["03. OOP 虚表与多态"]
+        Ch4["04. 移动语义与完美转发"]
+    end
+
+    subgraph Meta["编译期抽象与元编程 (P0-P1)"]
+        Ch5["05. 模板与泛型编程"]
+        Ch8["08. 现代 C++ 特性精选"]
+        Ch10["10. 运算符重载与三向比较"]
+    end
+
+    subgraph Systems["系统级运行时与并发 (P1-P2)"]
+        Ch6["06. 编译、链接与构建"]
+        Ch7["07. 并发模型与无锁编程"]
+        Ch9["09. 异常安全与错误处理"]
+    end
 
     Ch1 --> Ch2 --> Ch3 --> Ch4
-    Ch4 --> Ch5
-    Ch4 --> Ch8
-    Ch1 --> Ch6
-    Ch3 --> Ch7
+    Ch4 --> Ch5 --> Ch8
+    Ch1 --> Ch6 --> Ch7
     Ch8 --> Ch9
     Ch5 --> Ch10
-
-    style Ch1 fill:#d00000,stroke:#e85d04,color:white
-    style Ch2 fill:#d00000,stroke:#e85d04,color:white
-    style Ch3 fill:#d00000,stroke:#e85d04,color:white
-    style Ch4 fill:#e85d04,stroke:#f48c06,color:white
-    style Ch5 fill:#2d6a4f,stroke:#40916c,color:white
-    style Ch6 fill:#e85d04,stroke:#f48c06,color:white
-    style Ch7 fill:#e85d04,stroke:#f48c06,color:white
-    style Ch8 fill:#2d6a4f,stroke:#40916c,color:white
-    style Ch9 fill:#e85d04,stroke:#f48c06,color:white
-    style Ch10 fill:#2d6a4f,stroke:#40916c,color:white
 ```
 
 ---
 
-## 各章速览
+## 1. 核心章节知识图谱
 
-| 章节 | 主题 | 面试权重 | 核心考点 |
-|------|------|---------|---------|
-| [**第一章**](./01_memory_model/) | 内存模型与对象布局 | ★★★★★ | 五大内存区、字节对齐、new/delete、对象池 |
-| [**第二章**](./02_pointers_and_smart_pointers/) | 指针、引用与智能指针 | ★★★★★ | unique/shared/weak_ptr、循环引用、RAII |
-| [**第三章**](./03_oop_and_polymorphism/) | OOP 深入：虚函数与多态 | ★★★★★ | vtable/vptr、多继承布局、四种 cast、ECS |
-| [**第四章**](./04_move_semantics/) | 值类别、移动语义与完美转发 | ★★★★☆ | 左值右值、std::move、RVO、emplace_back |
-| [**第五章**](./05_templates/) | 模板与泛型编程 | ★★★☆☆ | SFINAE、变参模板、if constexpr、Concepts |
-| [**第六章**](./06_compilation_and_linking/) | 编译、链接与构建 | ★★★★☆ | 四阶段流程、ODR、static 五种含义、热重载 |
-| [**第七章**](./07_concurrency/) | 并发与多线程 | ★★★★☆ | mutex、atomic、条件变量、无锁队列、线程池 |
-| [**第八章**](./08_modern_cpp/) | 现代 C++ 特性精选 | ★★★☆☆ | auto、Lambda、optional/variant、协程 |
-| [**第九章**](./09_exception_handling/) | 异常处理与异常安全 | ★★★★☆ | 栈展开、三种安全保证、noexcept、构造/析构异常 |
-| [**第十章**](./10_operator_overloading/) | 运算符重载 | ★★★☆☆ | 成员/非成员选择、三路比较<=>、ADL、类型转换运算符 |
-
----
-
-## 推荐阅读路线
-
-### 🚀 面试急救（3 天）
-
-> 时间紧迫？按面试权重从高到低刷：
-
-```
-Day 1: Ch1 内存模型 → Ch2 智能指针 → Ch3 OOP 多态
-Day 2: Ch4 移动语义 → Ch6 编译链接
-Day 3: Ch7 并发多线程 → Ch9 异常处理 → Ch8 8.2~8.3
-```
-
-### 📚 系统掌握（2 周）
-
-> 每天 1 小时，按章节顺序 Ch1→Ch8 完整阅读 + 手写代码验证。
-
-### 🎮 游戏开发重点
-
-> 已有 C++ 基础？重点看游戏实战场景：
-
-- **内存管理**：Ch1 对象池 / 帧分配器、Ch2 自定义 deleter
-- **架构设计**：Ch3 ECS vs 继承、Ch5 泛型对象池 / Handle 系统
-- **性能优化**：Ch4 RVO / emplace、Ch7 无锁队列 / SPSC
-- **工程实践**：Ch6 热重载 / 插件系统、Ch8 协程对话系统、Ch9 资源加载异常安全
-- **数学与迭代**：Ch10 数学库运算符重载 / 自定义迭代器
+| 章节 | 核心机制与底层考点 | 优先级 | 工业级/引擎实践场景 |
+| :--- | :--- | :---: | :--- |
+| [**01. 内存模型与对象布局**](./01_memory_model/) | 虚拟地址划分、结构体对齐/空类大小、EBO、Cache Line 64B 伪共享 | **P0** | 原生侵入式内存池 (Intrusive Pool Allocator) |
+| [**02. 指针、引用与智能指针**](./02_pointers_and_smart_pointers/) | 指针与引用汇编差异、控制块拆分、`make_shared` 弱引用缓存驻留 | **P0** | 零开销 GPU 显存 Handle 封装、SBO 机制 |
+| [**03. OOP 深入：虚函数与多态**](./03_oop_and_polymorphism/) | vptr/vtable 汇编反编译、Thunk 偏移调节、虚基类表 vbptr、四类 Cast | **P0** | 零 RTTI 编译期类型 ID、ECS SoA 布局 |
+| [**04. 移动语义与完美转发**](./04_move_semantics/) | 值类别体系 (glvalue/xvalue)、引用折叠、`std::forward`、NRVO 消除 | **P0** | `std::vector` 的 `noexcept` 扩容保证、强异常安全缓冲区 |
+| [**05. 模板与泛型编程**](./05_templates/) | 编译期多态、函数特化禁区、SFINAE 机制、C++20 Concepts、两阶段查找 | **P0** | 编译期 CRTP 消除虚表、零开销强类型 Handle |
+| [**06. 编译、链接与构建**](./06_compilation_and_linking/) | 构建 4 阶段、Name Mangling、`extern "C"`、ODR 规则、GOT/PLT 延迟绑定 | **P1** | 跨平台 Gameplay 动态库热重载、Unity Build 防污染 |
+| [**07. 并发模型与无锁编程**](./07_concurrency/) | CAS 原语、6 种硬件内存序 (Happens-Before)、`scoped_lock` 预防死锁 | **P0** | 64B 隔离 SPSC 无锁环形队列、逻辑/渲染双缓冲 |
+| [**08. 现代 C++ 特性精选**](./08_modern_cpp/) | `decltype` 表达式规则、Lambda 闭包类机理、`optional`/`variant`/`span` | **P0** | 编译期 FNV-1a 字符串哈希、类型安全 EventBus |
+| [**09. 异常处理与异常安全**](./09_exception_handling/) | 栈展开 (Stack Unwinding)、双异常崩溃、Copy-and-Swap 强保证 | **P1** | `-fno-exceptions` 底层机理与安全容器封装 |
+| [**10. 运算符重载与三向比较**](./10_operator_overloading/) | 不可重载 4 运算符、对称非成员函数、ADL 查找、C++20 `<=>` 序关系 | **P1** | SIMD 友好的工业级 Vec3 向量数学库实现 |
 
 ---
 
-## 系列特色
+## 2. 推荐复习与攻坚路径
 
-- 🧠 **面试导向**：每章的"30 秒速答"可直接用于面试口述
-- 🎮 **游戏实战**：所有示例围绕游戏引擎、ECS、渲染管线
-- 📊 **图解原理**：Mermaid 图解内存布局、编译流程、线程同步
-- ⚠️ **陷阱速查**："这段代码有什么问题？" 系列覆盖高频考点
-- 🔗 **交叉引用**：章节间深度关联（如 Ch5 模板 + Ch1 placement new + Ch4 完美转发 = 泛型对象池；Ch9 异常安全 + Ch4 noexcept = vector 扩容策略）
+### 路线 A：底层核心攻坚（针对大厂核心 C++ / 引擎架构轮次）
+- **核心路径**：`01_memory_model` $\rightarrow$ `02_pointers_and_smart_pointers` $\rightarrow$ `03_oop_and_polymorphism` $\rightarrow$ `04_move_semantics` $\rightarrow$ `07_concurrency`
+- **考核重点**：直接针对虚拟地址空间划分、虚表汇编指令间接跳转、移动语义与 `noexcept` 扩容退化、CPU 缓存一致性与 SPSC 无锁队列。
+
+### 路线 B：现代泛型与工程构建（针对中高级系统设计轮次）
+- **核心路径**：`05_templates` $\rightarrow$ `06_compilation_and_linking` $\rightarrow$ `08_modern_cpp` $\rightarrow$ `09_exception_handling` $\rightarrow$ `10_operator_overloading`
+- **考核重点**：两阶段查找与 CRTP 静态多态、动态链接 PIC 与 GOT/PLT、`enum class` 与 `variant` 模式匹配、强异常安全保证与模块热重载。
